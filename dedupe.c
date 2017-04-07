@@ -107,10 +107,59 @@ void set_dedupe_dirty(struct dedupe_info *dedupe_info, struct dedupe *dedupe)
 	set_bit((dedupe - dedupe_info->dedupe_md)/DEDUPE_PER_BLOCK,  (long unsigned int *)dedupe_info->dedupe_md_dirty_bitmap);
 }
 
-int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info)
+int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe*dedupe,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary)
+{
+	struct summary_table_entry *entry;
+	struct summary_table_entry *pre_entry;
+	if(dedupe->start_pos_st!=-1)
+	{
+		if(origin_summary->nid==del_summary.nid
+			&&origin_summary->ofs_in_node==del_summary.ofs_in_node)
+		{
+			entry=dedupe_info->sum_table+dedupe->start_pos_st;
+			origin_summary->nid=entry->nid;
+			origin_summary->ofs_in_node=entry->ofs_in_node;
+			dedupe->start_pos_st=entry->next;
+			entry->next=dedupe_info->sum_table->next;
+			dedupe_info->sum_table->next=entry-dedupe_info->sum_table;
+			return 1;
+		}
+		else
+		{
+			pre_entry=dedupe_info->sum_table+dedupe->start_pos_st;
+			if(pre_entry->nid==del_summary.nid
+			 &&pre_entry->ofs_in_node==del_summary.ofs_in_node)
+			{
+				dedupe->start_pos_st=pre_entry->next;
+				pre_entry->next=dedupe_info->sum_table->next;
+				dedupe_info->sum_table->next=pre_entry-dedupe_info->sum_table;
+			}
+			else
+			{
+				while(pre_entry->next!=-1)
+				{
+					entry=dedupe_info->sum_table+pre_entry->next;
+					if(unlikely(entry->nid==del_summary.nid&&entry->ofs_in_node==del_summary.ofs_in_node))
+					{
+						pre_entry->next=entry->next;
+						entry->next=dedupe_info->sum_table->next;
+						dedupe_info->sum_table->next=entry-dedupe_info->sum_table;
+						return 0;
+					}
+					else
+						pre_entry=entry;
+				}
+			}
+		}
+	}
+
+	return -1;
+}
+
+int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info,int *index)
 {
 	struct dedupe *cur,*c = dedupe_info->last_delete_dedupe;
-
+	
 	spin_lock(&dedupe_info->lock);
 	if(NEW_ADDR == addr) return -1;
 
@@ -165,6 +214,7 @@ int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info)
 #ifdef F2FS_REVERSE_ADDR
 aa:
 #endif
+			
 			cur->ref--;
 			dedupe_info->logical_blk_cnt--;
 			dedupe_info->last_delete_dedupe = cur;
@@ -274,7 +324,7 @@ void init_summary_table(struct dedupe_info *dedupe_info)
 	struct summary_table_entry *entry;
 	dedupe_info->sum_table=vmalloc(SUM_TABLE_LEN*sizeof(struct summary_table_entry));
 	memset(dedupe_info->sum_table,0,SUM_TABLE_LEN*sizeof(struct summary_table_entry));
-	entry=(struct summary_table_entry*)((char*)dedupe_info->sum_table);
+	entry=dedupe_info->sum_table;
 	for(i=0;i<SUM_TABLE_LEN;i++)
 	{
 		(entry+i)->next=i+1;
@@ -322,7 +372,6 @@ void exit_dedupe_info(struct dedupe_info *dedupe_info)
 //f2fs_gc_dedupe
 void set_summary_table_entry(struct summary_table_entry *entry,__le32 nid,__le16 ofs_in_node)
 {
-	entry->next=-1;
 	entry->nid=nid;
 	entry->ofs_in_node=ofs_in_node;
 }
@@ -337,6 +386,7 @@ int f2fs_add_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe *
 	dedupe_info->sum_table->next=entry->next;
 	entry->next=dedupe->start_pos_st;
 	dedupe->start_pos_st=entry-dedupe_info->sum_table;
+	return 0;//add success;
 }
 
 

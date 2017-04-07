@@ -811,13 +811,14 @@ void refresh_sit_entry(struct f2fs_sb_info *sbi, block_t old, block_t new)
 void refresh_sit_entry_dedupe(struct f2fs_sb_info *sbi, block_t old, block_t new)
 {
 	struct dedupe_info *dedupe_info = NULL;
+	int index;
 	update_sit_entry(sbi, new, 1);
 
 	dedupe_info = &sbi->dedupe_info;
 
 	if (GET_SEGNO(sbi, old) != NULL_SEGNO)
 	{
-		int ret = f2fs_dedupe_delete_addr(old, dedupe_info);
+		int ret = f2fs_dedupe_delete_addr(old, dedupe_info,&index);
 		if (ret>0)
 		{
 			spin_unlock(&dedupe_info->lock);
@@ -1364,6 +1365,19 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	mutex_unlock(&curseg->curseg_mutex);
 }
 
+void test_summary_page(unsigned int segno,block_t blk,struct f2fs_summary sum,int flag)
+{
+	
+	if(flag)
+		printk("------------new---------------\n");
+	else
+		printk("------------dedupe---------------\n");
+	printk("segno:%d\n",segno);
+	printk("nid:%d\n",sum.nid);
+	printk("ofs_in_node:%d\n",sum.ofs_in_node);
+	printk("blkaddr:%d\n",blk);
+}
+
 int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 		block_t old_blkaddr, block_t *new_blkaddr,
 		struct f2fs_summary *sum, int type)
@@ -1373,7 +1387,7 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 	bool direct_io = (type == CURSEG_DIRECT_IO);
 	u8 hash[16];
 	struct dedupe* dedupe = NULL;
-	struct summary_table_entry *entry=NULL;
+	int index;
 	
 	type = direct_io ? CURSEG_WARM_DATA : type;
 
@@ -1392,7 +1406,11 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 	dedupe = f2fs_dedupe_search(hash, &sbi->dedupe_info);
 	if(!dedupe)
 	{
+		
 		*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
+		
+		//test_summary_page(curseg->segno, *new_blkaddr, *sum, 1);
+		//printk("next_blk_off :%d\n",curseg->next_blkoff);
 		f2fs_dedupe_add(hash, &sbi->dedupe_info, *new_blkaddr);
 		spin_lock(&sbi->stat_lock);
 		sbi->total_valid_block_count ++;
@@ -1403,14 +1421,17 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 	{
 		//f2fs_gc_dedupe
 		f2fs_add_summary_table_entry(&sbi->dedupe_info, dedupe, sum->nid, sum->ofs_in_node);
+		
 		dedupe->ref++;
 		set_dedupe_dirty(&sbi->dedupe_info, dedupe);
 		*new_blkaddr = dedupe->addr;
+		//test_summary_page(curseg->segno, *new_blkaddr, *sum, 0);
+		//printk("next_blk_off :%d\n",curseg->next_blkoff);
 		spin_unlock(&sbi->dedupe_info.lock);
 
 		if (GET_SEGNO(sbi, old_blkaddr) != NULL_SEGNO)
 		{
-			int ret = f2fs_dedupe_delete_addr(old_blkaddr, &sbi->dedupe_info);
+			int ret = f2fs_dedupe_delete_addr(old_blkaddr, &sbi->dedupe_info,&index);
 			if (ret>0)
 			{
 				spin_unlock(&sbi->dedupe_info.lock);

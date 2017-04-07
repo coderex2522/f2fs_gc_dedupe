@@ -474,17 +474,47 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 	addr = blkaddr_in_node(raw_node) + ofs;
 	dedupe_info = &F2FS_SB(dn->inode->i_sb)->dedupe_info;
 
+	printk("----------Main Segment blkaddr-------------------\n");
+	printk("MAIN_BLKADDR : %d\n",MAIN_BLKADDR(sbi));
+	printk("----------===SEG0_BLKADDR------------------------\n");
+	printk("SEG0_BLKADDR : %d\n",SEG0_BLKADDR(sbi));
+	
 	for (; count > 0; count--, addr++, dn->ofs_in_node++) {
 		block_t blkaddr = le32_to_cpu(*addr);
+		struct summary_table_entry del_entry,origin_entry;
+		struct page* sum_page;
+		struct f2fs_summary_block *sum;
+		unsigned int segno;
+		int ret,index;
 		if (blkaddr == NULL_ADDR)
 			continue;
-
+		
 		dn->data_blkaddr = NULL_ADDR;
 		set_data_blkaddr(dn);
 		nr_free++;
 		if(FS_COMPR_FL&F2FS_I(dn->inode)->i_flags)
 		{
-			int ret = f2fs_dedupe_delete_addr(blkaddr, dedupe_info);
+			//set summary table entry
+			del_entry.nid=cpu_to_le32(dn->nid);
+			del_entry.ofs_in_node=cpu_to_le16(dn->ofs_in_node);
+			segno=GET_L2R_SEGNO(FREE_I(sbi),GET_SEGNO_FROM_SEG0(sbi, blkaddr));
+			//printk("nid:%d\n",del_entry.nid);
+			//printk("ofs_in_node:%d\n",del_entry.ofs_in_node);
+			//printk("blkaddr:%d\n",blkaddr);
+			//printk("start_seg_blk2:%d\n",START_BLOCK(sbi, segno));
+			sum_page = get_sum_page(sbi, segno);
+			sum = page_address(sum_page);
+			unlock_page(sum_page);
+			if((blkaddr-START_BLOCK(sbi, segno)<0)||(blkaddr-START_BLOCK(sbi, segno)>512))
+				printk("error!!!");
+			else
+			{
+				origin_entry.nid=sum->entries[blkaddr-START_BLOCK(sbi, segno)].nid;
+				origin_entry.ofs_in_node=sum->entries[blkaddr-START_BLOCK(sbi, segno)].ofs_in_node;
+			}
+			
+			//end f2fs_gc_dedupe
+			ret = f2fs_dedupe_delete_addr(blkaddr, dedupe_info,&index);
 			if (ret>0)
 			{
 				spin_unlock(&dedupe_info->lock);
@@ -500,6 +530,7 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 				sbi->total_valid_block_count--;
 				spin_unlock(&sbi->stat_lock);
 			}
+			f2fs_put_page(sum_page, 0);
 		}
 		invalidate_blocks(sbi, blkaddr);
 		if (dn->ofs_in_node == 0 && IS_INODE(dn->node_page))

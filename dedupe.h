@@ -62,9 +62,10 @@ extern int f2fs_dedupe_add(u8 hash[], struct dedupe_info *dedupe_info, block_t a
 extern int init_dedupe_info(struct dedupe_info *dedupe_info);
 extern void init_f2fs_dedupe_bloom_filter(struct dedupe_info *dedupe_info);
 extern void exit_dedupe_info(struct dedupe_info *dedupe_info);
-extern int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info);
+extern int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info,int *index);
 extern void set_dedupe_dirty(struct dedupe_info *dedupe_info, struct dedupe *dedupe);
-//extern void set_summary_table_entry(struct summary_table_entry *entry,__le32 nid,__le16 ofs_in_node);
 extern int f2fs_add_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe *dedupe,__le32 nid,__le16 ofs_in_node);
+//extern int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe*dedupe,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary)
+extern int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe *dedupe,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary);
 #endif
 
