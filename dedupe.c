@@ -107,10 +107,36 @@ void set_dedupe_dirty(struct dedupe_info *dedupe_info, struct dedupe *dedupe)
 	set_bit((dedupe - dedupe_info->dedupe_md)/DEDUPE_PER_BLOCK,  (long unsigned int *)dedupe_info->dedupe_md_dirty_bitmap);
 }
 
-int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe*dedupe,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary)
+void test_summary_table(struct dedupe_info *dedupe_info,int index)
+{
+	struct summary_table_entry *entry;
+	struct dedupe *dedupe=&dedupe_info->dedupe_md[index];
+	printk("---------------------summary table--------------------------\n");
+	if(dedupe->start_pos_st!=-1)
+	{
+		entry=dedupe_info->sum_table+dedupe->start_pos_st;
+		while(entry->next!=-1)
+		{
+			printk("nid:%d      ",entry->nid);
+			printk("ofs_in_node:%d       ",entry->ofs_in_node);
+			printk("next:%d\n",entry->next);
+			if(entry->next!=-1)
+			{
+				entry=dedupe_info->sum_table+entry->next;
+			}
+		}
+		printk("nid:%d      ",entry->nid);
+		printk("ofs_in_node:%d       ",entry->ofs_in_node);
+		printk("next:%d\n",entry->next);
+	}
+	else
+		printk("---------------empty------------------------------\n");
+}
+int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary)
 {
 	struct summary_table_entry *entry;
 	struct summary_table_entry *pre_entry;
+	struct dedupe *dedupe=&dedupe_info->dedupe_md[index];
 	if(dedupe->start_pos_st!=-1)
 	{
 		if(origin_summary->nid==del_summary.nid
@@ -183,6 +209,7 @@ int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info,int *i
 	{
 		if(unlikely(cur->ref && addr == cur->addr))
 		{
+			*index=cur-dedupe_info->dedupe_md;
 			cur->ref--;
 			dedupe_info->logical_blk_cnt--;
 			dedupe_info->last_delete_dedupe = cur;
@@ -197,6 +224,7 @@ int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info,int *i
 					dedupe_info->bloom_filter[*(pos++)&dedupe_info->bloom_filter_mask]--;
 				}
 #endif
+				*index=-1;
 				cur->addr = 0;
 				dedupe_info->physical_blk_cnt--;
 				return 0;
@@ -214,7 +242,7 @@ int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info,int *i
 #ifdef F2FS_REVERSE_ADDR
 aa:
 #endif
-			
+			*index=cur-dedupe_info->dedupe_md;
 			cur->ref--;
 			dedupe_info->logical_blk_cnt--;
 			dedupe_info->last_delete_dedupe = cur;
@@ -229,6 +257,7 @@ aa:
 					dedupe_info->bloom_filter[*(pos++)&dedupe_info->bloom_filter_mask]--;
 				}
 #endif
+				*index=-1;
 				cur->addr = 0;
 				dedupe_info->physical_blk_cnt--;
 
@@ -380,7 +409,10 @@ int f2fs_add_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe *
 {
 	struct summary_table_entry *entry=NULL;
 	if(unlikely(dedupe_info->sum_table->next>=SUM_TABLE_LEN))
+	{
+		printk("can't add summary table entry!\n");
 		return -1;//beyond the array length;
+	}
 	entry=dedupe_info->sum_table+dedupe_info->sum_table->next;
 	set_summary_table_entry(entry, nid, ofs_in_node);
 	dedupe_info->sum_table->next=entry->next;
