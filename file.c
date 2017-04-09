@@ -469,7 +469,7 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 	int nr_free = 0, ofs = dn->ofs_in_node, len = count;
 	__le32 *addr;
 	struct dedupe_info *dedupe_info = NULL;
-
+	
 	raw_node = F2FS_NODE(dn->node_page);
 	addr = blkaddr_in_node(raw_node) + ofs;
 	dedupe_info = &F2FS_SB(dn->inode->i_sb)->dedupe_info;
@@ -477,12 +477,9 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 	
 	for (; count > 0; count--, addr++, dn->ofs_in_node++) {
 		block_t blkaddr = le32_to_cpu(*addr);
-		struct summary_table_entry del_entry,origin_entry;
-		struct page* sum_page;
-		struct f2fs_summary_block *sum;
 		unsigned int segno;
-		int ret,index,ret_ste;
-		struct node_info ni;
+		int ret,index; 
+		
 		if (blkaddr == NULL_ADDR)
 			continue;
 		
@@ -497,39 +494,43 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 			{
 				if(index>=0)
 				{
+					block_t blkoff;
+					struct summary_table_entry del_entry;
 					//set summary table entry
 					del_entry.nid=cpu_to_le32(dn->nid);
 					del_entry.ofs_in_node=cpu_to_le16(dn->ofs_in_node);
 					segno=GET_SEGNO(sbi, blkaddr);
+					blkoff=blkaddr-START_BLOCK(sbi, segno);
+
+					f2fs_bug_on(sbi,(blkoff<0)||(blkoff>512));
+					
 					if (segno != NULL_SEGNO)
 					{
-						sum_page = get_sum_page(sbi, segno);
-						sum = page_address(sum_page);
-						//unlock_page(sum_page);
-						if((blkaddr-START_BLOCK(sbi, segno)<0)||(blkaddr-START_BLOCK(sbi, segno)>512))
-							printk("blkaddr error!!!");
+						if(IS_CURSEG(sbi, segno))
+						{
+							int type;
+							struct curseg_info *curseg;
+							printk("---------IS_CURSEG---------------\n");
+							type=(int)(get_seg_entry(sbi, segno)->type); 
+							curseg=CURSEG_I(sbi, type);
+							mutex_lock(&curseg->curseg_mutex);
+							change_summary_table_entry(sbi, curseg->sum_blk, index, blkoff, del_entry);
+							mutex_unlock(&curseg->curseg_mutex);
+						}
 						else
 						{
-							origin_entry.nid=sum->entries[blkaddr-START_BLOCK(sbi, segno)].nid;
-							origin_entry.ofs_in_node=sum->entries[blkaddr-START_BLOCK(sbi, segno)].ofs_in_node;
-							printk("------------truncate block dedupe----------------------\n");
-							printk("origin summary nid: %d\n",origin_entry.nid);
-							printk("origin summary ofs_in_node:%d\n",origin_entry.ofs_in_node);
-							test_summary_table(dedupe_info, index);
-							ret_ste=f2fs_del_summary_table_entry(dedupe_info,index,&origin_entry,del_entry);
-							if(ret_ste==1)
-							{
-								sum->entries[blkaddr-START_BLOCK(sbi, segno)].nid=origin_entry.nid;
-								sum->entries[blkaddr-START_BLOCK(sbi, segno)].ofs_in_node=origin_entry.ofs_in_node;
-								printk("sum_block summary nid: %d\n",origin_entry.nid);
-								printk("sum_block summary ofs_in_node:%d\n",origin_entry.ofs_in_node);
-								get_node_info(sbi, __le32_to_cpu(origin_entry.nid), &ni);
-								sum->entries[blkaddr-START_BLOCK(sbi, segno)].version=ni.version;
-								set_page_dirty(sum_page);
-							}
-							test_summary_table(dedupe_info, index);
+							struct page* sum_page;
+							struct f2fs_summary_block *sum;
+							int ret_ste;
+							printk("------------truncate sum page------------------\n");
+							sum_page = get_sum_page(sbi, segno);
+							sum = page_address(sum_page);
+							//unlock_page(sum_page);
+							ret_ste=change_summary_table_entry(sbi, sum, index, blkoff, del_entry);
+							if(ret_ste==1)							
+								set_page_dirty(sum_page);						
+							f2fs_put_page(sum_page, 1);
 						}
-						f2fs_put_page(sum_page, 1);
 					}			
 					//end f2fs_gc_dedupe
 				}

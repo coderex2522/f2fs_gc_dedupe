@@ -1838,6 +1838,7 @@ void f2fs_replace_block(struct f2fs_sb_info *, struct dnode_of_data *,
 				block_t, block_t, unsigned char, bool);
 
 void test_summary_page(unsigned int segno,block_t blk,struct f2fs_summary sum,int flag);
+int change_summary_table_entry(struct f2fs_sb_info * sbi, struct f2fs_summary_block * sum_blk, int index, int blkoff, struct summary_table_entry del_entry);
 int allocate_data_block_dedupe(struct f2fs_sb_info *, struct page *,
 		block_t, block_t *, struct f2fs_summary *, int);
 void allocate_data_block(struct f2fs_sb_info *, struct page *,
