@@ -669,8 +669,6 @@ static int gc_data_segment(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	int phase = 0;
 
 	start_addr = START_BLOCK(sbi, segno);
-	printk("-------------gc data segment segno :%d ------------------\n",segno);
-	printk("-------------gc type %d----------------------------------\n",gc_type);
 next_step:
 	entry = sum;
 
@@ -836,7 +834,7 @@ gc_more:
 		if (__get_victim(sbi, &segno, gc_type) || prefree_segments(sbi))
 			write_checkpoint(sbi, &cpc);
 	}
-	printk("gc_type :%d segno :%d\n",gc_type,segno);
+	
 
 	if (segno == NULL_SEGNO && !__get_victim(sbi, &segno, gc_type))
 		goto stop;

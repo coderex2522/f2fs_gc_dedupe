@@ -486,12 +486,12 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 		dn->data_blkaddr = NULL_ADDR;
 		set_data_blkaddr(dn);
 		nr_free++;
-		printk("truncate blkaddr %d\n",blkaddr);
+		
 		if(FS_COMPR_FL&F2FS_I(dn->inode)->i_flags)
 		{
 			index=-1;
 			ret = f2fs_dedupe_delete_addr(blkaddr, dedupe_info,&index);
-			printk("ret %d\n",ret);
+	
 			if (ret>0)
 			{
 				if(index>=0)
@@ -508,12 +508,10 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 					
 					if (segno != NULL_SEGNO)
 					{
-						printk("truncate segno %d\n",segno);
 						if(IS_CURSEG(sbi, segno))
 						{
 							int type;
 							struct curseg_info *curseg;
-							printk("---------IS_CURSEG---------------\n");
 							type=(int)(get_seg_entry(sbi, segno)->type); 
 							curseg=CURSEG_I(sbi, type);
 							mutex_lock(&curseg->curseg_mutex);
@@ -525,10 +523,8 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 							struct page* sum_page;
 							struct f2fs_summary_block *sum;
 							int ret_ste;
-							printk("------------truncate sum page------------------\n");
 							sum_page = get_sum_page(sbi, segno);
 							sum = page_address(sum_page);
-							//unlock_page(sum_page);
 							ret_ste=change_summary_table_entry(sbi, sum, index, blkoff, del_entry);
 							if(ret_ste==1)							
 								set_page_dirty(sum_page);						
@@ -1766,7 +1762,6 @@ static int f2fs_ioc_write_checkpoint(struct file *filp, unsigned long arg)
 
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	printk("----------------------f2fs ioctl----------------------\n");
 	switch (cmd) {
 	case F2FS_IOC_GETFLAGS:
 		return f2fs_ioc_getflags(filp, arg);
@@ -1795,7 +1790,6 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case F2FS_IOC_GET_ENCRYPTION_PWSALT:
 		return f2fs_ioc_get_encryption_pwsalt(filp, arg);
 	case F2FS_IOC_GARBAGE_COLLECT:
-		printk("----------------F2FS_IOC_GARBAGE_COLLECT-----------------\n");
 		return f2fs_ioc_gc(filp, arg);
 	case F2FS_IOC_WRITE_CHECKPOINT:
 		return f2fs_ioc_write_checkpoint(filp, arg);
