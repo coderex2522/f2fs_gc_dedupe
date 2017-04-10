@@ -1016,7 +1016,7 @@ static inline void f2fs_unlock_all(struct f2fs_sb_info *sbi)
 
 static inline int __get_cp_reason(struct f2fs_sb_info *sbi)
 {
-	int reason = CP_SYNC;
+	int reason = CP_SYNC;//default;
 
 	if (test_opt(sbi, FASTBOOT))
 		reason = CP_FASTBOOT;

@@ -486,10 +486,12 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 		dn->data_blkaddr = NULL_ADDR;
 		set_data_blkaddr(dn);
 		nr_free++;
+		printk("truncate blkaddr %d\n",blkaddr);
 		if(FS_COMPR_FL&F2FS_I(dn->inode)->i_flags)
 		{
 			index=-1;
 			ret = f2fs_dedupe_delete_addr(blkaddr, dedupe_info,&index);
+			printk("ret %d\n",ret);
 			if (ret>0)
 			{
 				if(index>=0)
@@ -506,6 +508,7 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 					
 					if (segno != NULL_SEGNO)
 					{
+						printk("truncate segno %d\n",segno);
 						if(IS_CURSEG(sbi, segno))
 						{
 							int type;
@@ -1720,7 +1723,7 @@ static int f2fs_ioc_gc(struct file *filp, unsigned long arg)
 	struct inode *inode = file_inode(filp);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	__u32 sync;
-
+	
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -1763,6 +1766,7 @@ static int f2fs_ioc_write_checkpoint(struct file *filp, unsigned long arg)
 
 long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	printk("----------------------f2fs ioctl----------------------\n");
 	switch (cmd) {
 	case F2FS_IOC_GETFLAGS:
 		return f2fs_ioc_getflags(filp, arg);
@@ -1791,6 +1795,7 @@ long f2fs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case F2FS_IOC_GET_ENCRYPTION_PWSALT:
 		return f2fs_ioc_get_encryption_pwsalt(filp, arg);
 	case F2FS_IOC_GARBAGE_COLLECT:
+		printk("----------------F2FS_IOC_GARBAGE_COLLECT-----------------\n");
 		return f2fs_ioc_gc(filp, arg);
 	case F2FS_IOC_WRITE_CHECKPOINT:
 		return f2fs_ioc_write_checkpoint(filp, arg);

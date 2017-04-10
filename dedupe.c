@@ -132,6 +132,7 @@ void test_summary_table(struct dedupe_info *dedupe_info,int index)
 	else
 		printk("---------------empty------------------------------\n");
 }
+
 int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary)
 {
 	struct summary_table_entry *entry;
@@ -180,6 +181,15 @@ int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struc
 	}
 
 	return -1;
+}
+
+void f2fs_gc_change_reverse_and_bloom(struct dedupe_info *dedupe_info, block_t old_blkaddr,block_t new_blkaddr,int offset)
+{
+#ifdef F2FS_REVERSE_ADDR
+	dedupe_info->reverse_addr[old_blkaddr]=-1;
+	dedupe_info->reverse_addr[new_blkaddr]=offset;
+#endif
+	
 }
 
 int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info,int *index)
