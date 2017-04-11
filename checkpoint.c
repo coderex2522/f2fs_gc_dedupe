@@ -178,7 +178,7 @@ int ra_meta_pages(struct f2fs_sb_info *sbi, block_t start, int nrpages, int type
 		page = grab_cache_page(META_MAPPING(sbi), fio.blk_addr);
 		if (!page)
 			continue;
-		if (PageUptodate(page)) {//if page is uptodate ,return 1;otherwise return 0;
+		if (PageUptodate(page)) {
 			f2fs_put_page(page, 1);
 			continue;
 		}

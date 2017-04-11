@@ -969,7 +969,6 @@ static int raw_super_checksum_invalid(struct super_block *sb, struct f2fs_super_
 			return 1;
 		}
 	}
-	
 	return 0;
 }
 

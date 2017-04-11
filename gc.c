@@ -79,7 +79,7 @@ static int gc_thread_func(void *data)
 
 		trace_f2fs_background_gc(sbi->sb, wait_ms,
 				prefree_segments(sbi), free_segments(sbi));
-		
+
 		/* if return value is not zero, no victim was selected */
 		if (f2fs_gc(sbi, test_opt(sbi, FORCE_FG_GC)))
 			wait_ms = gc_th->no_gc_sleep_time;
@@ -132,13 +132,11 @@ void stop_gc_thread(struct f2fs_sb_info *sbi)
 	sbi->gc_thread = NULL;
 }
 
-//gc_type:FG_GC,alloc_mode:LFS
 static int select_gc_type(struct f2fs_gc_kthread *gc_th, int gc_type)
 {
 	int gc_mode = (gc_type == BG_GC) ? GC_CB : GC_GREEDY;
-	
+
 	if (gc_th && gc_th->gc_idle) {
-		
 		if (gc_th->gc_idle == 1)
 			gc_mode = GC_CB;
 		else if (gc_th->gc_idle == 2)
@@ -147,7 +145,6 @@ static int select_gc_type(struct f2fs_gc_kthread *gc_th, int gc_type)
 	return gc_mode;
 }
 
-//gc_type:FG_GC,type:NO_CHECK_TYPE,alloc_mode:LFS-->gc_mode=GC_GREEDY
 static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 			int type, struct victim_sel_policy *p)
 {
@@ -257,7 +254,6 @@ static inline unsigned int get_gc_cost(struct f2fs_sb_info *sbi,
  * When it is called from SSR segment selection, it finds a segment
  * which has minimum valid blocks and removes it from dirty seglist.
  */
- //*result=-1,gc_type:FG_GC,type:NO_CHECK_TYPE,alloc_mode:LFS
 static int get_victim_by_default(struct f2fs_sb_info *sbi,
 		unsigned int *result, int gc_type, int type, char alloc_mode)
 {
@@ -275,7 +271,6 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 	p.min_segno = NULL_SEGNO;
 	p.min_cost = max_cost = get_max_cost(sbi, &p);
 
-	
 	if (p.max_search == 0)
 		goto out;
 
@@ -284,7 +279,7 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 		if (p.min_segno != NULL_SEGNO)
 			goto got_it;
 	}
-	
+
 	while (1) {
 		unsigned long cost;
 		unsigned int segno;
@@ -404,7 +399,6 @@ static int check_valid_map(struct f2fs_sb_info *sbi,
  * This function compares node address got in summary with that in NAT.
  * On validity, copy that node with cold status, otherwise (invalid node)
  * ignore that.
- * parameter sum is the array of the block summaries in segment. 
  */
 static int gc_node_segment(struct f2fs_sb_info *sbi,
 		struct f2fs_summary *sum, unsigned int segno, int gc_type)
@@ -532,7 +526,7 @@ static bool is_alive(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 		return false;
 	}
 
-	*nofs = ofs_of_node(node_page);//?
+	*nofs = ofs_of_node(node_page);
 	source_blkaddr = datablock_addr(node_page, ofs_in_node);
 	f2fs_put_page(node_page, 1);
 
@@ -669,6 +663,7 @@ static int gc_data_segment(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	int phase = 0;
 
 	start_addr = START_BLOCK(sbi, segno);
+
 next_step:
 	entry = sum;
 
@@ -773,7 +768,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 	struct f2fs_summary_block *sum;
 	struct blk_plug plug;
 	int nfree = 0;
-	
+
 	/* read segment summary of victim */
 	sum_page = get_sum_page(sbi, segno);
 
@@ -819,8 +814,8 @@ int f2fs_gc(struct f2fs_sb_info *sbi, bool sync)
 		.ilist = LIST_HEAD_INIT(gc_list.ilist),
 		.iroot = RADIX_TREE_INIT(GFP_NOFS),
 	};
-	
-	cpc.reason = __get_cp_reason(sbi);//default 2 CP_SYNC;
+
+	cpc.reason = __get_cp_reason(sbi);
 gc_more:
 	segno = NULL_SEGNO;
 
@@ -828,24 +823,21 @@ gc_more:
 		goto stop;
 	if (unlikely(f2fs_cp_error(sbi)))
 		goto stop;
-	
+
 	if (gc_type == BG_GC && has_not_enough_free_secs(sbi, sec_freed)) {
 		gc_type = FG_GC;
 		if (__get_victim(sbi, &segno, gc_type) || prefree_segments(sbi))
 			write_checkpoint(sbi, &cpc);
 	}
-	
 
 	if (segno == NULL_SEGNO && !__get_victim(sbi, &segno, gc_type))
 		goto stop;
 	ret = 0;
-	
 
 	/* readahead multi ssa blocks those have contiguous address */
 	if (sbi->segs_per_sec > 1)
 		ra_meta_pages(sbi, GET_SUM_BLOCK(sbi, segno), sbi->segs_per_sec,
 								META_SSA);
-	
 
 	for (i = 0; i < sbi->segs_per_sec; i++) {
 		/*
@@ -856,7 +848,7 @@ gc_more:
 				gc_type == FG_GC)
 			break;
 	}
-	
+
 	if (i == sbi->segs_per_sec && gc_type == FG_GC)
 		sec_freed++;
 

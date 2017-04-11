@@ -469,70 +469,24 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 	int nr_free = 0, ofs = dn->ofs_in_node, len = count;
 	__le32 *addr;
 	struct dedupe_info *dedupe_info = NULL;
-	
+
 	raw_node = F2FS_NODE(dn->node_page);
 	addr = blkaddr_in_node(raw_node) + ofs;
 	dedupe_info = &F2FS_SB(dn->inode->i_sb)->dedupe_info;
 
-	
 	for (; count > 0; count--, addr++, dn->ofs_in_node++) {
 		block_t blkaddr = le32_to_cpu(*addr);
-		unsigned int segno;
-		int ret,index; 
-		
 		if (blkaddr == NULL_ADDR)
 			continue;
-		
+
 		dn->data_blkaddr = NULL_ADDR;
 		set_data_blkaddr(dn);
 		nr_free++;
-		
 		if(FS_COMPR_FL&F2FS_I(dn->inode)->i_flags)
 		{
-			index=-1;
-			ret = f2fs_dedupe_delete_addr(blkaddr, dedupe_info,&index);
-	
+			int ret = f2fs_dedupe_delete_addr(blkaddr, dedupe_info);
 			if (ret>0)
 			{
-				if(index>=0)
-				{
-					block_t blkoff;
-					struct summary_table_entry del_entry;
-					//set summary table entry
-					del_entry.nid=cpu_to_le32(dn->nid);
-					del_entry.ofs_in_node=cpu_to_le16(dn->ofs_in_node);
-					segno=GET_SEGNO(sbi, blkaddr);
-					blkoff=blkaddr-START_BLOCK(sbi, segno);
-
-					f2fs_bug_on(sbi,(blkoff<0)||(blkoff>512));
-					
-					if (segno != NULL_SEGNO)
-					{
-						if(IS_CURSEG(sbi, segno))
-						{
-							int type;
-							struct curseg_info *curseg;
-							type=(int)(get_seg_entry(sbi, segno)->type); 
-							curseg=CURSEG_I(sbi, type);
-							mutex_lock(&curseg->curseg_mutex);
-							change_summary_table_entry(sbi, curseg->sum_blk, index, blkoff, del_entry);
-							mutex_unlock(&curseg->curseg_mutex);
-						}
-						else
-						{
-							struct page* sum_page;
-							struct f2fs_summary_block *sum;
-							int ret_ste;
-							sum_page = get_sum_page(sbi, segno);
-							sum = page_address(sum_page);
-							ret_ste=change_summary_table_entry(sbi, sum, index, blkoff, del_entry);
-							if(ret_ste==1)							
-								set_page_dirty(sum_page);						
-							f2fs_put_page(sum_page, 1);
-						}
-					}			
-					//end f2fs_gc_dedupe
-				}
 				spin_unlock(&dedupe_info->lock);
 				continue;
 			}
@@ -546,7 +500,6 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 				sbi->total_valid_block_count--;
 				spin_unlock(&sbi->stat_lock);
 			}
-			
 		}
 		invalidate_blocks(sbi, blkaddr);
 		if (dn->ofs_in_node == 0 && IS_INODE(dn->node_page))
@@ -1719,7 +1672,7 @@ static int f2fs_ioc_gc(struct file *filp, unsigned long arg)
 	struct inode *inode = file_inode(filp);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	__u32 sync;
-	
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
