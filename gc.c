@@ -639,6 +639,7 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 		if (clear_page_dirty_for_io(page))
 			inode_dec_dirty_pages(inode);
 		set_cold_data(page);
+		printk("--------move data page------------\n");
 		do_write_data_page(&fio);
 		clear_cold_data(page);
 	}

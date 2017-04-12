@@ -1836,6 +1836,10 @@ void write_data_page_dedupe(struct dnode_of_data *, struct f2fs_io_info *);
 void rewrite_data_page(struct f2fs_io_info *);
 void f2fs_replace_block(struct f2fs_sb_info *, struct dnode_of_data *,
 				block_t, block_t, unsigned char, bool);
+
+int change_summary_table_entry(struct f2fs_sb_info *sbi,struct f2fs_summary_block *sum_blk,int index,
+										int blkoff,struct summary_table_entry del_summary,nid_t *nid);
+
 int allocate_data_block_dedupe(struct f2fs_sb_info *, struct page *,
 		block_t, block_t *, struct f2fs_summary *, int);
 void allocate_data_block(struct f2fs_sb_info *, struct page *,
