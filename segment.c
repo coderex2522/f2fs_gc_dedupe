@@ -1522,6 +1522,7 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 		f2fs_bug_on(sbi, (sbi->dedupe_info.sum_table->next)>=SUM_TABLE_LEN);
 		if((sbi->dedupe_info.sum_table->next)>=SUM_TABLE_LEN-1000)
 			printk("---------nihao----------\n");
+		
 		f2fs_add_summary_table_entry(&sbi->dedupe_info, dedupe, sum->nid, sum->ofs_in_node);
 		dedupe->ref++;
 		set_dedupe_dirty(&sbi->dedupe_info, dedupe);
@@ -1535,9 +1536,63 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 			printk("-------GET SEGNO allocate-------------\n");
 			if(type==2&&old_blkaddr==*new_blkaddr)
 				printk("-----gc----------\n");
+			if(old_blkaddr==*new_blkaddr)
+				printk("---------------hahahahha----------\n");
+			
 			if (ret>0)
 			{
 				spin_unlock(&sbi->dedupe_info.lock);
+				
+				if(index>=0)
+				{
+					struct summary_table_entry del_entry;
+					unsigned int segno;
+					block_t old_blkoff;
+					
+					del_entry.nid=sum->nid;
+					del_entry.ofs_in_node=sum->ofs_in_node;
+					segno=GET_SEGNO(sbi, old_blkaddr);
+					old_blkoff=old_blkaddr-START_BLOCK(sbi, segno);
+
+					f2fs_bug_on(sbi, (old_blkoff<0||old_blkoff>=512));
+
+					if(IS_CURSEG(sbi, segno))
+					{
+						if(segno==curseg->segno)
+						{
+							int ret_ste;
+							struct node_info ni;
+							nid_t nid;
+							
+							ret_ste=change_summary_table_entry(sbi, curseg->sum_blk, index, old_blkoff, del_entry,&nid);
+							if(ret_ste==1)
+							{
+								mutex_unlock(&sit_i->sentry_lock);
+								mutex_unlock(&curseg->curseg_mutex);
+								get_node_info(sbi, nid, &ni);
+								mutex_lock(&curseg->curseg_mutex);
+								mutex_lock(&sit_i->sentry_lock);
+								curseg->sum_blk->entries[old_blkoff].version=ni.version;
+							}
+						}
+						else
+						{
+							mutex_unlock(&sit_i->sentry_lock);
+							mutex_unlock(&curseg->curseg_mutex);
+							change_summary_table_entry_in_curseg(sbi, del_entry, segno, old_blkoff, index);
+							mutex_lock(&curseg->curseg_mutex);
+							mutex_lock(&sit_i->sentry_lock);
+						}
+					}
+					else
+					{
+						mutex_unlock(&sit_i->sentry_lock);
+						mutex_unlock(&curseg->curseg_mutex);
+						change_summary_table_entry_in_sumpage(sbi, del_entry, segno, old_blkoff, index);
+						mutex_lock(&curseg->curseg_mutex);
+						mutex_lock(&sit_i->sentry_lock);
+					}
+				}
 			}
 			else
 			{
