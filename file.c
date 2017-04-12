@@ -478,6 +478,7 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 		block_t blkaddr = le32_to_cpu(*addr);
 		unsigned int segno;
 		int ret,index;
+		
 		if (blkaddr == NULL_ADDR)
 			continue;
 
@@ -491,13 +492,12 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 			if (ret>0)
 			{
 				spin_unlock(&dedupe_info->lock);
+				//f2fs_gc_dedupe
 				if(index>=0)
 				{
 					block_t blkoff;
 					struct summary_table_entry del_entry;
-					int ret_ste;
-					nid_t nid;
-					struct node_info ni;
+					
 					//set summary table entry
 					del_entry.nid=cpu_to_le32(dn->nid);
 					del_entry.ofs_in_node=cpu_to_le16(dn->ofs_in_node);
@@ -509,45 +509,11 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 					if (segno != NULL_SEGNO)
 					{
 						if(IS_CURSEG(sbi, segno))
-						{
-							int type;
-							struct curseg_info *curseg;
-							printk("-------------IS_CURSEG------------\n");
-							type=(int)(get_seg_entry(sbi, segno)->type); 
-							curseg=CURSEG_I(sbi, type);
-							mutex_lock(&curseg->curseg_mutex);
-							ret_ste=change_summary_table_entry(sbi, curseg->sum_blk, index, blkoff, del_entry,&nid);
-							if(ret_ste==1)
-							{
-								mutex_unlock(&curseg->curseg_mutex);
-								get_node_info(sbi, nid, &ni);
-								mutex_lock(&curseg->curseg_mutex);
-								curseg->sum_blk->entries[blkoff].version=ni.version;
-							}
-							mutex_unlock(&curseg->curseg_mutex);
-						}
+							change_summary_table_entry_in_curseg(sbi, del_entry, segno, blkoff, index);
 						else
-						{
-							struct page* sum_page;
-							struct f2fs_summary_block *sum;
-							
-							printk("-----------------sum page-----------------\n");
-							sum_page = get_sum_page(sbi, segno);
-							sum = page_address(sum_page);
-							unlock_page(sum_page);
-							ret_ste=change_summary_table_entry(sbi, sum, index, blkoff, del_entry,&nid);
-							if(ret_ste==1){
-								get_node_info(sbi, nid, &ni);
-								sum->entries[blkoff].version=ni.version;
-								lock_page(sum_page);
-								set_page_dirty(sum_page);
-								f2fs_put_page(sum_page,1);
-							}
-							else
-								f2fs_put_page(sum_page, 0);
-						}
-					}//end f2fs_gc_dedupe			
-				}
+							change_summary_table_entry_in_sumpage(sbi, del_entry, segno, blkoff, index);
+					}		
+				}//end f2fs_gc_dedupe	
 				continue;
 			}
 			else

@@ -8,7 +8,7 @@
 #define DEDUPE_SEGMENT_COUNT 6
 #define DEDUPE_PER_BLOCK (PAGE_CACHE_SIZE/sizeof(struct dedupe))
 //f2fs_gc_dedupe
-#define SUM_TABLE_LEN 1300000
+#define SUM_TABLE_LEN 1200000
 
 typedef u32 block_t;
 

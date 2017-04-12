@@ -811,15 +811,17 @@ int change_summary_table_entry(struct f2fs_sb_info *sbi,struct f2fs_summary_bloc
 										int blkoff,struct summary_table_entry del_summary,nid_t *nid)
 {
 	int ret;
-	
 	struct summary_table_entry origin_summary;
+	
 	origin_summary.nid=sum_blk->entries[blkoff].nid;
 	origin_summary.ofs_in_node=sum_blk->entries[blkoff].ofs_in_node;
 	
 	f2fs_bug_on(sbi, index>=(sbi->dedupe_info.dedupe_block_count*DEDUPE_PER_BLOCK));
+	
 	spin_lock(&sbi->dedupe_info.lock);
 	ret=f2fs_del_summary_table_entry(&sbi->dedupe_info,index,&origin_summary,del_summary);
 	spin_unlock(&sbi->dedupe_info.lock);
+	
 	if(ret==1)
 	{
 		sum_blk->entries[blkoff].nid=origin_summary.nid;
@@ -830,6 +832,58 @@ int change_summary_table_entry(struct f2fs_sb_info *sbi,struct f2fs_summary_bloc
 	return ret;
 }
 
+int change_summary_table_entry_in_curseg(struct f2fs_sb_info *sbi, struct summary_table_entry del_entry, 
+			unsigned int segno, block_t blkoff, int index)
+{
+	struct curseg_info *curseg;
+	struct node_info ni;
+	int type,ret;
+	nid_t nid;
+	
+	
+	type=(int)(get_seg_entry(sbi, segno)->type);
+	curseg=CURSEG_I(sbi, type);
+
+	mutex_lock(&curseg->curseg_mutex);
+	ret=change_summary_table_entry(sbi, curseg->sum_blk, index, blkoff, del_entry,&nid);
+
+	if(ret==1)
+	{
+		mutex_unlock(&curseg->curseg_mutex);
+		get_node_info(sbi, nid, &ni);
+		mutex_lock(&curseg->curseg_mutex);
+		curseg->sum_blk->entries[blkoff].version=ni.version;
+	}
+	mutex_unlock(&curseg->curseg_mutex);
+
+	return 0;
+}
+
+int change_summary_table_entry_in_sumpage(struct f2fs_sb_info *sbi, struct summary_table_entry del_entry,
+			unsigned int segno, block_t blkoff, int index)
+{
+	struct f2fs_summary_block *sum_block;
+	struct page *sum_page;
+	struct node_info ni;
+	nid_t nid;
+	int ret;
+	
+	sum_page = get_sum_page(sbi, segno);
+	sum_block = page_address(sum_page);
+	unlock_page(sum_page);
+	ret=change_summary_table_entry(sbi, sum_block, index, blkoff, del_entry,&nid);
+	if(ret==1){
+		get_node_info(sbi, nid, &ni);
+		sum_block->entries[blkoff].version=ni.version;
+		lock_page(sum_page);
+		set_page_dirty(sum_page);
+		f2fs_put_page(sum_page,1);
+	}
+	else
+		f2fs_put_page(sum_page, 0);
+	
+	return 0;	
+}
 
 void refresh_sit_entry_dedupe(struct f2fs_sb_info *sbi,block_t old, block_t new)
 {
