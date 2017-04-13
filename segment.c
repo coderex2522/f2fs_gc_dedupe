@@ -885,7 +885,7 @@ int change_summary_table_entry_in_sumpage(struct f2fs_sb_info *sbi, struct summa
 	return 0;	
 }
 
-void refresh_sit_entry_dedupe(struct f2fs_sb_info *sbi, struct curseg_info *curseg, struct f2fs_summary *sum, block_t old, block_t new, int flag)
+void refresh_sit_entry_dedupe(struct f2fs_sb_info *sbi, struct curseg_info *curseg, struct f2fs_summary *sum, block_t old, block_t new)
 {
 	struct dedupe_info *dedupe_info = NULL;
 	struct sit_info *sit_i = SIT_I(sbi);
@@ -893,6 +893,7 @@ void refresh_sit_entry_dedupe(struct f2fs_sb_info *sbi, struct curseg_info *curs
 
 	dedupe_info = &sbi->dedupe_info;
 
+	
 	 if (GET_SEGNO(sbi, old) != NULL_SEGNO)
 	{
 		int ret,index;
@@ -1493,7 +1494,6 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 	bool direct_io = (type == CURSEG_DIRECT_IO);
 	u8 hash[16];
 	struct dedupe* dedupe = NULL;
-	int flag=0;
 	
 	type = direct_io ? CURSEG_WARM_DATA : type;
 
@@ -1517,6 +1517,97 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 		spin_lock(&sbi->stat_lock);
 		sbi->total_valid_block_count ++;
 		spin_unlock(&sbi->stat_lock);
+		spin_unlock(&sbi->dedupe_info.lock);
+	}
+	else if(old_blkaddr==dedupe->addr&&type==2)
+	{
+		struct summary_table_entry *sum_table=sbi->dedupe_info.sum_table;
+		struct summary_table_entry *entry;
+		int off;
+
+		
+		printk("---------haha--------------\n");
+		*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
+		
+		dedupe->addr=*new_blkaddr;
+		off=dedupe-(sbi->dedupe_info.dedupe_md);
+		f2fs_gc_change_reverse_and_bloom(&sbi->dedupe_info, old_blkaddr, *new_blkaddr, off);
+		
+		if(dedupe->start_pos_st!=-1)
+		{
+			int phase=0;
+			spin_unlock(&sbi->dedupe_info.lock);
+			mutex_unlock(&sit_i->sentry_lock);
+			mutex_unlock(&curseg->curseg_mutex);
+			
+			if(dn_node_page!=NULL)
+				unlock_page(dn_node_page);
+			
+f2fs_gc_next_step:
+			spin_lock(&sbi->dedupe_info.lock);
+			entry=sum_table+dedupe->start_pos_st;
+			do
+			{
+				struct f2fs_node *rn;
+				__le32 *addr_array;
+				struct page *node_page;
+				nid_t nid;
+				unsigned int ofs_in_node;
+				nid=__le32_to_cpu(entry->nid);
+				ofs_in_node=__le16_to_cpu(entry->ofs_in_node);
+				printk("---------haha2--------------\n");
+				
+				
+				
+				if(phase==0)
+				{
+					spin_unlock(&sbi->dedupe_info.lock);
+					ra_node_page(sbi, nid);
+					printk("---------haha4--------------\n");
+					goto f2fs_gc_next_loop;
+				}
+				
+				spin_unlock(&sbi->dedupe_info.lock);
+				node_page=get_node_page(sbi,nid);
+				
+				if (IS_ERR(node_page))
+				{
+					printk("------error---------\n");
+					f2fs_put_page(node_page, 1);
+					goto f2fs_gc_next_loop;
+				}
+				
+				f2fs_wait_on_page_writeback(node_page, NODE, true);
+				rn = F2FS_NODE(node_page);
+				printk("---------haha3--------------\n");
+
+				// Get physical address of data block 
+				addr_array = blkaddr_in_node(rn);
+				addr_array[ofs_in_node] = cpu_to_le32(*new_blkaddr);
+				set_page_dirty(node_page);
+				f2fs_put_page(node_page, 1);
+				
+f2fs_gc_next_loop:
+				spin_lock(&sbi->dedupe_info.lock);
+				if(entry->next!=-1)
+					entry=sum_table+entry->next;
+				else
+					entry=NULL;
+			}
+			while(entry!=NULL);
+
+			spin_unlock(&sbi->dedupe_info.lock);
+
+			if((++phase)<2)
+				goto f2fs_gc_next_step;
+			
+			if(dn_node_page!=NULL)
+				lock_page(dn_node_page);
+
+			mutex_lock(&curseg->curseg_mutex);
+			mutex_lock(&sit_i->sentry_lock);
+			spin_lock(&sbi->dedupe_info.lock);
+		}
 		spin_unlock(&sbi->dedupe_info.lock);
 	}
 	else
@@ -1615,7 +1706,7 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 	 * SIT information should be updated before segment allocation,
 	 * since SSR needs latest valid block information.
 	 */
-	refresh_sit_entry_dedupe(sbi, curseg, sum, old_blkaddr, *new_blkaddr, flag);
+	refresh_sit_entry_dedupe(sbi, curseg, sum, old_blkaddr, *new_blkaddr);
 
 	mutex_unlock(&sit_i->sentry_lock);
 

@@ -1039,7 +1039,7 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	}
 	f2fs_put_page(apage, 0);
 
-	apage = grab_cache_page(NODE_MAPPING(sbi), nid);
+	apage = grab_cache_page(NODE_MAPPING(sbi), nid);//lock page;
 	if (!apage)
 		return;
 
