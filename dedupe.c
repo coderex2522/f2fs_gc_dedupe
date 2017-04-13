@@ -118,6 +118,7 @@ int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struc
 		if(origin_summary->nid==del_summary.nid
 			&&origin_summary->ofs_in_node==del_summary.ofs_in_node)
 		{
+			
 			entry=dedupe_info->sum_table+dedupe->start_pos_st;
 			origin_summary->nid=entry->nid;
 			origin_summary->ofs_in_node=entry->ofs_in_node;
@@ -132,6 +133,7 @@ int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struc
 			if(pre_entry->nid==del_summary.nid
 			 &&pre_entry->ofs_in_node==del_summary.ofs_in_node)
 			{
+				
 				dedupe->start_pos_st=pre_entry->next;
 				pre_entry->next=dedupe_info->sum_table->next;
 				dedupe_info->sum_table->next=pre_entry-dedupe_info->sum_table;
@@ -143,6 +145,7 @@ int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struc
 					entry=dedupe_info->sum_table+pre_entry->next;
 					if(unlikely(entry->nid==del_summary.nid&&entry->ofs_in_node==del_summary.ofs_in_node))
 					{
+						
 						pre_entry->next=entry->next;
 						entry->next=dedupe_info->sum_table->next;
 						dedupe_info->sum_table->next=entry-dedupe_info->sum_table;
@@ -158,7 +161,7 @@ int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struc
 	return -1;
 }
 
-void f2fs_gc_change_reverse_and_bloom(struct dedupe_info *dedupe_info, block_t old_blkaddr,block_t new_blkaddr,int offset)
+void f2fs_gc_change_reverse_and_bloom(struct dedupe_info *dedupe_info, block_t old_blkaddr, block_t new_blkaddr, int offset)
 {
 #ifdef F2FS_REVERSE_ADDR
 	dedupe_info->reverse_addr[old_blkaddr]=-1;

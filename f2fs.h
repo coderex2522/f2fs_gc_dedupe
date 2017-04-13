@@ -1846,7 +1846,7 @@ int change_summary_table_entry_in_sumpage(struct f2fs_sb_info *sbi, struct summa
 			unsigned int segno, block_t blkoff, int index);
 
 int allocate_data_block_dedupe(struct f2fs_sb_info *, struct page *,
-		block_t, block_t *, struct f2fs_summary *, int);
+		block_t, block_t *, struct f2fs_summary *, int ,struct page *);
 void allocate_data_block(struct f2fs_sb_info *, struct page *,
 		block_t, block_t *, struct f2fs_summary *, int);
 void f2fs_wait_on_page_writeback(struct page *, enum page_type, bool);

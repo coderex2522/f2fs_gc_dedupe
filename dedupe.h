@@ -66,5 +66,6 @@ extern int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info
 extern void set_dedupe_dirty(struct dedupe_info *dedupe_info, struct dedupe *dedupe);
 extern int f2fs_add_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe *dedupe,__le32 nid,__le16 ofs_in_node);
 extern int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary);
+extern void f2fs_gc_change_reverse_and_bloom(struct dedupe_info *dedupe_info, block_t old_blkaddr, block_t new_blkaddr, int offset);
 #endif
 
