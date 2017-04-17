@@ -8,13 +8,23 @@
 #define DEDUPE_SEGMENT_COUNT 6
 #define DEDUPE_PER_BLOCK (PAGE_CACHE_SIZE/sizeof(struct dedupe))
 
+#define SUM_TABLE_LEN 1200000
+
 typedef u32 block_t;
 
 struct dedupe
 {
 	block_t addr;
 	int ref;
+	int start_pos_st;
 	u8 hash[16];
+};
+
+
+struct summary_table_entry{
+	__le32 nid;
+	__le16 ofs_in_node;
+	unsigned int next;
 };
 
 struct dedupe_info
@@ -39,6 +49,7 @@ struct dedupe_info
 	spinlock_t lock;
 	struct crypto_shash *tfm;
 	unsigned int crypto_shash_descsize;
+	struct summary_table_entry *sum_table;
 #ifdef F2FS_REVERSE_ADDR
 	int *reverse_addr;
 #endif
@@ -51,8 +62,10 @@ extern int f2fs_dedupe_add(u8 hash[], struct dedupe_info *dedupe_info, block_t a
 extern int init_dedupe_info(struct dedupe_info *dedupe_info);
 extern void init_f2fs_dedupe_bloom_filter(struct dedupe_info *dedupe_info);
 extern void exit_dedupe_info(struct dedupe_info *dedupe_info);
-extern int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info);
+extern int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info,int *dedupe_index);
 extern void set_dedupe_dirty(struct dedupe_info *dedupe_info, struct dedupe *dedupe);
-
+extern int f2fs_add_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe *dedupe,__le32 nid,__le16 ofs_in_node);
+extern int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary);
+extern void f2fs_gc_change_reverse_and_bloom(struct dedupe_info *dedupe_info, block_t old_blkaddr, block_t new_blkaddr, int offset);
 #endif
 

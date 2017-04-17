@@ -476,6 +476,9 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 
 	for (; count > 0; count--, addr++, dn->ofs_in_node++) {
 		block_t blkaddr = le32_to_cpu(*addr);
+		unsigned int segno;
+		int ret,index;
+	
 		if (blkaddr == NULL_ADDR)
 			continue;
 
@@ -484,10 +487,33 @@ int truncate_data_blocks_range(struct dnode_of_data *dn, int count)
 		nr_free++;
 		if(FS_COMPR_FL&F2FS_I(dn->inode)->i_flags)
 		{
-			int ret = f2fs_dedupe_delete_addr(blkaddr, dedupe_info);
+			ret = f2fs_dedupe_delete_addr(blkaddr, dedupe_info, &index);
+			
 			if (ret>0)
 			{
 				spin_unlock(&dedupe_info->lock);
+				//f2fs_gc_dedupe
+				if(index>=0)
+				{
+					block_t blkoff;
+					struct summary_table_entry del_entry;
+					
+					//set summary table entry
+					del_entry.nid=cpu_to_le32(dn->nid);
+					del_entry.ofs_in_node=cpu_to_le16(dn->ofs_in_node);
+					segno=GET_SEGNO(sbi, blkaddr);
+					blkoff=blkaddr-START_BLOCK(sbi, segno);
+
+					f2fs_bug_on(sbi,(blkoff<0)||(blkoff>512));
+					
+					if (segno != NULL_SEGNO)
+					{
+						if(IS_CURSEG(sbi, segno))
+							change_summary_table_entry_in_curseg(sbi, del_entry, segno, blkoff, index);
+						else
+							change_summary_table_entry_in_sumpage(sbi, del_entry, segno, blkoff, index);
+					}		
+				}//end f2fs_gc_dedupe	
 				continue;
 			}
 			else
