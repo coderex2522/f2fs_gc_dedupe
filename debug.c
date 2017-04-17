@@ -378,7 +378,7 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 
 	si->all_area_segs = le32_to_cpu(raw_super->segment_count);
 	si->sit_area_segs = le32_to_cpu(raw_super->segment_count_sit);
-	si->nat_area_segs = le32_to_cpu(raw_super->segment_count_nat) - sbi->dedupe_info.dedupe_segment_count;
+	si->nat_area_segs = le32_to_cpu(raw_super->segment_count_nat);
 	si->ssa_area_segs = le32_to_cpu(raw_super->segment_count_ssa);
 	si->main_area_segs = le32_to_cpu(raw_super->segment_count_main);
 	si->main_area_sections = le32_to_cpu(raw_super->section_count);

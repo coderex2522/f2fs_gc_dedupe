@@ -1039,7 +1039,7 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
 	}
 	f2fs_put_page(apage, 0);
 
-	apage = grab_cache_page(NODE_MAPPING(sbi), nid);//lock page;
+	apage = grab_cache_page(NODE_MAPPING(sbi), nid);
 	if (!apage)
 		return;
 
@@ -1936,7 +1936,8 @@ void flush_dedupe_entries(struct f2fs_sb_info *sbi)
 	for(i=0; i< sbi->dedupe_info.dedupe_block_count; i++)
 	{
 		struct page *page = NULL;
-		u32 dedupe_base_blkaddr = le32_to_cpu(sbi->raw_super->nat_blkaddr) + ((le32_to_cpu(sbi->raw_super->segment_count_nat) - sbi->dedupe_info.dedupe_segment_count) << sbi->log_blocks_per_seg);
+		//u32 dedupe_base_blkaddr = le32_to_cpu(sbi->raw_super->nat_blkaddr) + ((le32_to_cpu(sbi->raw_super->segment_count_nat) - sbi->dedupe_info.dedupe_segment_count) << sbi->log_blocks_per_seg);
+		u32 dedupe_base_blkaddr = le32_to_cpu(sbi->raw_super->dedupe_blkaddr);
 		if(test_and_clear_bit(i, (long unsigned int *)sbi->dedupe_info.dedupe_md_dirty_bitmap))
 		{
 			dedupe_base_blkaddr+=i/512*1024;
@@ -2009,7 +2010,7 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 	nm_i->nat_blkaddr = le32_to_cpu(sb_raw->nat_blkaddr);
 
 	/* segment_count_nat includes pair segment so divide to 2. */
-	nat_segs = (le32_to_cpu(sb_raw->segment_count_nat) - sbi->dedupe_info.dedupe_segment_count) >> 1;
+	nat_segs = le32_to_cpu(sb_raw->segment_count_nat) >> 1;
 	nat_blocks = nat_segs << le32_to_cpu(sb_raw->log_blocks_per_seg);
 
 	nm_i->max_nid = NAT_ENTRY_PER_BLOCK * nat_blocks;

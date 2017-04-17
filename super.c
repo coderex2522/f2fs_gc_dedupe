@@ -1064,7 +1064,7 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
 	sbi->secs_per_zone = le32_to_cpu(raw_super->secs_per_zone);
 	sbi->total_sections = le32_to_cpu(raw_super->section_count);
 	sbi->total_node_count =
-		((le32_to_cpu(raw_super->segment_count_nat) - DEDUPE_SEGMENT_COUNT) / 2)
+		(le32_to_cpu(raw_super->segment_count_nat)  / 2)
 			* sbi->blocks_per_seg * NAT_ENTRY_PER_BLOCK;
 	sbi->root_ino_num = le32_to_cpu(raw_super->root_ino);
 	sbi->node_ino_num = le32_to_cpu(raw_super->node_ino);
@@ -1323,7 +1323,8 @@ try_onemore:
 	init_dedupe_info(&sbi->dedupe_info);
 	for(i=0; i<sbi->dedupe_info.dedupe_block_count; i++)
 	{
-		u32 dedupe_base_blkaddr = le32_to_cpu(sbi->raw_super->nat_blkaddr) + ((le32_to_cpu(sbi->raw_super->segment_count_nat) - sbi->dedupe_info.dedupe_segment_count) << sbi->log_blocks_per_seg);
+		//u32 dedupe_base_blkaddr = le32_to_cpu(sbi->raw_super->nat_blkaddr) + ((le32_to_cpu(sbi->raw_super->segment_count_nat) - sbi->dedupe_info.dedupe_segment_count) << sbi->log_blocks_per_seg);
+		u32 dedupe_base_blkaddr = le32_to_cpu(sbi->raw_super->dedupe_blkaddr);
 		struct dedupe *dedupe;
 		struct page *page = NULL;
 		dedupe_base_blkaddr+=i/512*1024;
