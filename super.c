@@ -1316,7 +1316,8 @@ try_onemore:
 	sbi->dedupe_info.reverse_addr = vmalloc(le64_to_cpu(raw_super->block_count)*sizeof(int));
 	memset(sbi->dedupe_info.reverse_addr, 0xff, le64_to_cpu(raw_super->block_count)*sizeof(int));
 #endif
-	sbi->dedupe_info.dedupe_block_count = (DEDUPE_SEGMENT_COUNT/2) << sbi->log_blocks_per_seg;
+	sbi->dedupe_info.dedupe_segment_count = le32_to_cpu(sbi->raw_super->segment_count_dedupe)/2;
+	sbi->dedupe_info.dedupe_block_count = (sbi->dedupe_info.dedupe_segment_count/2) << sbi->log_blocks_per_seg;
 	sbi->dedupe_info.dedupe_bitmap_size = sbi->dedupe_info.dedupe_block_count/8;
 	sbi->dedupe_info.dedupe_size = sbi->dedupe_info.dedupe_block_count * DEDUPE_PER_BLOCK * sizeof(struct dedupe);
 	sbi->dedupe_info.dedupe_bitmap = kmemdup(__bitmap_ptr(sbi, DEDUPE_BITMAP), sbi->dedupe_info.dedupe_bitmap_size, GFP_KERNEL);

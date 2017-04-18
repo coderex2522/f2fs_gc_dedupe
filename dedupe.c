@@ -359,7 +359,7 @@ int init_dedupe_info(struct dedupe_info *dedupe_info)
 	dedupe_info->dedupe_md = vmalloc(dedupe_info->dedupe_size);
 	memset(dedupe_info->dedupe_md, 0, dedupe_info->dedupe_size);
 	dedupe_info->dedupe_md_dirty_bitmap = kzalloc(dedupe_info->dedupe_bitmap_size, GFP_KERNEL);
-	dedupe_info->dedupe_segment_count = DEDUPE_SEGMENT_COUNT;
+	//dedupe_info->dedupe_segment_count = DEDUPE_SEGMENT_COUNT;
 #ifdef F2FS_BLOOM_FILTER
 	dedupe_info->bloom_filter_mask = (1<<(f2fs_dedupe_O_log2(dedupe_info->dedupe_block_count) + 10)) -1;
 	dedupe_info->bloom_filter = vmalloc((dedupe_info->bloom_filter_mask + 1) * sizeof(unsigned int));
