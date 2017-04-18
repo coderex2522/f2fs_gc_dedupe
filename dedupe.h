@@ -8,7 +8,9 @@
 //#define DEDUPE_SEGMENT_COUNT 6
 #define DEDUPE_PER_BLOCK (PAGE_CACHE_SIZE/sizeof(struct dedupe))
 
-#define SUM_TABLE_LEN 1200000
+//#define SUM_TABLE_LEN 1200000
+#define SUM_TABLE_SEGMENT_COUNT 6
+#define SUM_TABLE_PER_BLOCK (PAGE_CACHE_SIZE/sizeof(struct summary_table_entry))
 
 typedef u32 block_t;
 
@@ -50,6 +52,11 @@ struct dedupe_info
 	struct crypto_shash *tfm;
 	unsigned int crypto_shash_descsize;
 	struct summary_table_entry *sum_table;
+	unsigned int sum_table_segment_count;
+	unsigned int sum_table_block_count;
+	unsigned int sum_table_size;
+	//unsigned int sum_table_bitmap_size;
+	//char 
 #ifdef F2FS_REVERSE_ADDR
 	int *reverse_addr;
 #endif

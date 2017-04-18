@@ -341,10 +341,12 @@ void init_summary_table(struct dedupe_info *dedupe_info)
 {
 	int i;
 	struct summary_table_entry *entry;
-	dedupe_info->sum_table=vmalloc(SUM_TABLE_LEN*sizeof(struct summary_table_entry));
-	memset(dedupe_info->sum_table,0,SUM_TABLE_LEN*sizeof(struct summary_table_entry));
+	unsigned int sum_table_len = dedupe_info->sum_table_block_count * SUM_TABLE_PER_BLOCK;
+	
+	dedupe_info->sum_table=vmalloc(dedupe_info->sum_table_size);
+	memset(dedupe_info->sum_table,0,dedupe_info->sum_table_size);
 	entry=dedupe_info->sum_table;
-	for(i=0;i<SUM_TABLE_LEN;i++)
+	for(i=0;i<sum_table_len;i++)
 	{
 		(entry+i)->next=i+1;
 	}
@@ -398,7 +400,7 @@ void set_summary_table_entry(struct summary_table_entry *entry,__le32 nid,__le16
 int f2fs_add_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe *dedupe,__le32 nid,__le16 ofs_in_node)
 {
 	struct summary_table_entry *entry=NULL;
-	if(unlikely(dedupe_info->sum_table->next>=SUM_TABLE_LEN))
+	if(unlikely(dedupe_info->sum_table->next>=(dedupe_info->sum_table_block_count * SUM_TABLE_PER_BLOCK)))
 	{
 		printk("can't add summary table entry!\n");
 		return -1;//beyond the array length;

@@ -1612,7 +1612,7 @@ f2fs_gc_next_loop:
 	}
 	else
 	{
-		f2fs_bug_on(sbi, (sbi->dedupe_info.sum_table->next)>=SUM_TABLE_LEN);
+		f2fs_bug_on(sbi, (sbi->dedupe_info.sum_table->next)>=(sbi->dedupe_info.sum_table_block_count * SUM_TABLE_PER_BLOCK));
 		
 		f2fs_add_summary_table_entry(&sbi->dedupe_info, dedupe, sum->nid, sum->ofs_in_node);
 		dedupe->ref++;

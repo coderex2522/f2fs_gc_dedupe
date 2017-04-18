@@ -1936,7 +1936,6 @@ void flush_dedupe_entries(struct f2fs_sb_info *sbi)
 	for(i=0; i< sbi->dedupe_info.dedupe_block_count; i++)
 	{
 		struct page *page = NULL;
-		//u32 dedupe_base_blkaddr = le32_to_cpu(sbi->raw_super->nat_blkaddr) + ((le32_to_cpu(sbi->raw_super->segment_count_nat) - sbi->dedupe_info.dedupe_segment_count) << sbi->log_blocks_per_seg);
 		u32 dedupe_base_blkaddr = le32_to_cpu(sbi->raw_super->dedupe_blkaddr);
 		if(test_and_clear_bit(i, (long unsigned int *)sbi->dedupe_info.dedupe_md_dirty_bitmap))
 		{

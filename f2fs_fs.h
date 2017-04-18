@@ -95,7 +95,9 @@ struct f2fs_super_block {
 	__u8 encrypt_pw_salt[16];	/* Salt used for string2key algorithm */
 	__le32 segment_count_dedupe;	/* # of segments for Dedupe */
  	__le32 dedupe_blkaddr;		/* start block address of Dedupe */
-	__u8 reserved[859];		/* valid reserved region *//*default 867*/
+	__le32 segment_count_sum_table;
+	__le32 sum_table_blkaddr;
+	__u8 reserved[851];		/* valid reserved region *//*default 867*/
 	__le32 crc;			/* checksum of superblock */
 } __packed;
 

@@ -1321,10 +1321,14 @@ try_onemore:
 	sbi->dedupe_info.dedupe_bitmap_size = sbi->dedupe_info.dedupe_block_count/8;
 	sbi->dedupe_info.dedupe_size = sbi->dedupe_info.dedupe_block_count * DEDUPE_PER_BLOCK * sizeof(struct dedupe);
 	sbi->dedupe_info.dedupe_bitmap = kmemdup(__bitmap_ptr(sbi, DEDUPE_BITMAP), sbi->dedupe_info.dedupe_bitmap_size, GFP_KERNEL);
+	//f2fs_gc_dedupe
+	sbi->dedupe_info.sum_table_segment_count = SUM_TABLE_SEGMENT_COUNT;
+	sbi->dedupe_info.sum_table_block_count = (sbi->dedupe_info.sum_table_segment_count/2) << sbi->log_blocks_per_seg;
+	sbi->dedupe_info.sum_table_size = sbi->dedupe_info.sum_table_block_count * SUM_TABLE_PER_BLOCK *sizeof(struct summary_table_entry);
+	
 	init_dedupe_info(&sbi->dedupe_info);
 	for(i=0; i<sbi->dedupe_info.dedupe_block_count; i++)
 	{
-		//u32 dedupe_base_blkaddr = le32_to_cpu(sbi->raw_super->nat_blkaddr) + ((le32_to_cpu(sbi->raw_super->segment_count_nat) - sbi->dedupe_info.dedupe_segment_count) << sbi->log_blocks_per_seg);
 		u32 dedupe_base_blkaddr = le32_to_cpu(sbi->raw_super->dedupe_blkaddr);
 		struct dedupe *dedupe;
 		struct page *page = NULL;
@@ -1349,6 +1353,7 @@ try_onemore:
 		}
 		f2fs_put_page(page, 1);
 	}
+	
 #ifdef F2FS_BLOOM_FILTER
 	init_f2fs_dedupe_bloom_filter(&sbi->dedupe_info);
 #endif
