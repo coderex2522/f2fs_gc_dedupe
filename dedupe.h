@@ -26,7 +26,7 @@ struct dedupe
 struct summary_table_entry{
 	__le32 nid;
 	__le16 ofs_in_node;
-	unsigned int next;
+	__le32 next;
 };
 
 struct dedupe_info
@@ -55,8 +55,7 @@ struct dedupe_info
 	unsigned int sum_table_segment_count;
 	unsigned int sum_table_block_count;
 	unsigned int sum_table_size;
-	//unsigned int sum_table_bitmap_size;
-	//char 
+	
 #ifdef F2FS_REVERSE_ADDR
 	int *reverse_addr;
 #endif

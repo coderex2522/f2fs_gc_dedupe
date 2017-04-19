@@ -1589,8 +1589,8 @@ f2fs_gc_next_step:
 				
 f2fs_gc_next_loop:
 				spin_lock(&sbi->dedupe_info.lock);
-				if(entry->next!=-1)
-					entry=sum_table+entry->next;
+				if(le32_to_cpu(entry->next)!=-1)
+					entry=sum_table+le32_to_cpu(entry->next);
 				else
 					entry=NULL;
 			}
@@ -1612,7 +1612,7 @@ f2fs_gc_next_loop:
 	}
 	else
 	{
-		f2fs_bug_on(sbi, (sbi->dedupe_info.sum_table->next)>=(sbi->dedupe_info.sum_table_block_count * SUM_TABLE_PER_BLOCK));
+		f2fs_bug_on(sbi, le32_to_cpu(sbi->dedupe_info.sum_table->next)>=(sbi->dedupe_info.sum_table_block_count * SUM_TABLE_PER_BLOCK));
 		
 		f2fs_add_summary_table_entry(&sbi->dedupe_info, dedupe, sum->nid, sum->ofs_in_node);
 		dedupe->ref++;
