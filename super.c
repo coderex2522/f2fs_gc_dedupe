@@ -1359,6 +1359,34 @@ try_onemore:
 	init_f2fs_dedupe_bloom_filter(&sbi->dedupe_info);
 #endif
 
+	//f2fs gc dedupe
+	printk("sum table block count and blkaddr : %d %d\n",le32_to_cpu(sbi->raw_super->segment_count_sum_table),le32_to_cpu(sbi->raw_super->sum_table_blkaddr));
+	for(i=0; i<sbi->dedupe_info.sum_table_block_count; i++)
+	{
+		u32 sum_table_base_blkaddr = le32_to_cpu(sbi->raw_super->sum_table_blkaddr);
+		struct summary_table_entry *entry;
+		struct page *sum_table_page = NULL;
+		sum_table_base_blkaddr+=i/512;
+		
+		sum_table_page = get_meta_page(sbi, sum_table_base_blkaddr + i%512);
+		memcpy(((char *)sbi->dedupe_info.sum_table + i*(SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry))), page_address(sum_table_page), SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry));
+		entry = (struct summary_table_entry *)((char *)sbi->dedupe_info.sum_table + i*(SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry)));
+		if(i==0)
+		{
+			for(j=0; j<SUM_TABLE_PER_BLOCK; j++)
+			{
+				//printk("%d %d\n",le32_to_cpu(entry->nid),le16_to_cpu(entry->ofs_in_node));
+				printk("%d ",le32_to_cpu(entry->next));
+				entry++;
+				
+			}
+			printk("\n");
+		}
+		f2fs_put_page(sum_table_page, 1);
+	}
+	printk("--------------------------------end---------------------------\n");
+	//end f2fs gc dedupe
+
 	init_extent_cache_info(sbi);
 
 	init_ino_entry_info(sbi);

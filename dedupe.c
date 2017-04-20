@@ -350,11 +350,11 @@ void init_summary_table(struct dedupe_info *dedupe_info)
 	
 	dedupe_info->sum_table=vmalloc(dedupe_info->sum_table_size);
 	memset(dedupe_info->sum_table,0,dedupe_info->sum_table_size);
-	entry=dedupe_info->sum_table;
+	/*entry=dedupe_info->sum_table;
 	for(i=0;i<sum_table_len;i++)
 	{
 		(entry+i)->next=cpu_to_le32(i+1);
-	}
+	}*/
 }
 
 int init_dedupe_info(struct dedupe_info *dedupe_info)
