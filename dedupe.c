@@ -107,6 +107,11 @@ void set_dedupe_dirty(struct dedupe_info *dedupe_info, struct dedupe *dedupe)
 	set_bit((dedupe - dedupe_info->dedupe_md)/DEDUPE_PER_BLOCK,  (long unsigned int *)dedupe_info->dedupe_md_dirty_bitmap);
 }
 
+void set_sum_table_dirty(struct dedupe_info *dedupe_info, struct summary_table_entry *entry)
+{
+	set_bit((entry - dedupe_info->sum_table)/SUM_TABLE_PER_BLOCK, (long unsigned int *)dedupe_info->sum_table_dirty_bitmap);
+}
+
 int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary)
 {
 	struct summary_table_entry *entry;
@@ -126,6 +131,9 @@ int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struc
 			entry->next=dedupe_info->sum_table->next;
 			off = entry-dedupe_info->sum_table;
 			dedupe_info->sum_table->next= cpu_to_le32(off);
+			set_sum_table_dirty(dedupe_info, entry);
+			set_sum_table_dirty(dedupe_info, dedupe_info->sum_table);
+			set_dedupe_dirty(dedupe_info, dedupe);
 			return 1;
 		}
 		else
@@ -139,6 +147,9 @@ int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struc
 				pre_entry->next=dedupe_info->sum_table->next;
 				off = pre_entry-dedupe_info->sum_table;
 				dedupe_info->sum_table->next= cpu_to_le32(off);
+				set_sum_table_dirty(dedupe_info, pre_entry);
+				set_sum_table_dirty(dedupe_info, dedupe_info->sum_table);
+				set_dedupe_dirty(dedupe_info, dedupe);
 			}
 			else
 			{
@@ -154,6 +165,10 @@ int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struc
 						entry->next=dedupe_info->sum_table->next;
 						off = entry-dedupe_info->sum_table;
 						dedupe_info->sum_table->next = cpu_to_le32(off);
+						set_sum_table_dirty(dedupe_info, entry);
+						set_sum_table_dirty(dedupe_info, pre_entry);
+						set_sum_table_dirty(dedupe_info, dedupe_info->sum_table);
+						
 						break;
 					}
 					else
@@ -344,17 +359,9 @@ int f2fs_dedupe_O_log2(unsigned int x)
 //f2fs_gc_dedupe
 void init_summary_table(struct dedupe_info *dedupe_info)
 {
-	int i;
-	struct summary_table_entry *entry;
-	unsigned int sum_table_len = dedupe_info->sum_table_block_count * SUM_TABLE_PER_BLOCK;
-	
 	dedupe_info->sum_table=vmalloc(dedupe_info->sum_table_size);
 	memset(dedupe_info->sum_table,0,dedupe_info->sum_table_size);
-	/*entry=dedupe_info->sum_table;
-	for(i=0;i<sum_table_len;i++)
-	{
-		(entry+i)->next=cpu_to_le32(i+1);
-	}*/
+	dedupe_info->sum_table_dirty_bitmap = kzalloc(dedupe_info->sum_table_bitmap_size, GFP_KERNEL);
 }
 
 int init_dedupe_info(struct dedupe_info *dedupe_info)
@@ -385,7 +392,9 @@ void exit_dedupe_info(struct dedupe_info *dedupe_info)
 	vfree(dedupe_info->dedupe_md);
 	vfree(dedupe_info->sum_table);
 	kfree(dedupe_info->dedupe_md_dirty_bitmap);
+	kfree(dedupe_info->sum_table_dirty_bitmap);
 	kfree(dedupe_info->dedupe_bitmap);
+	kfree(dedupe_info->sum_table_bitmap);
 #ifdef F2FS_REVERSE_ADDR
 	vfree(dedupe_info->reverse_addr);
 #endif
@@ -415,5 +424,6 @@ int f2fs_add_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe *
 	dedupe_info->sum_table->next=entry->next;
 	entry->next=cpu_to_le32(dedupe->start_pos_st);
 	dedupe->start_pos_st=entry-dedupe_info->sum_table;
+	set_sum_table_dirty(dedupe_info, entry);
 	return 0;//add success;
 }

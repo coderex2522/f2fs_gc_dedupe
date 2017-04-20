@@ -1953,6 +1953,30 @@ void flush_dedupe_entries(struct f2fs_sb_info *sbi)
 	}
 }
 
+void flush_sum_table_entries(struct f2fs_sb_info *sbi)
+{
+	int i;
+
+	for(i=0; i< sbi->dedupe_info.sum_table_block_count; i++)
+	{
+		struct page *page = NULL;
+		u32 sum_table_base_blkaddr = le32_to_cpu(sbi->raw_super->sum_table_blkaddr);
+		if(test_and_clear_bit(i, (long unsigned int *)sbi->dedupe_info.sum_table_dirty_bitmap))
+		{
+			sum_table_base_blkaddr+=i/512*512;
+			if (!f2fs_test_bit(i, sbi->dedupe_info.sum_table_bitmap))
+			{
+				sum_table_base_blkaddr+=sbi->dedupe_info.sum_table_block_count;
+			}
+			f2fs_change_bit(i, sbi->dedupe_info.sum_table_bitmap);
+			page = get_meta_page(sbi, sum_table_base_blkaddr + i%512);
+			memcpy(page_address(page),((char *)sbi->dedupe_info.sum_table + i*(SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry))) , SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry));
+			set_page_dirty(page);
+			f2fs_put_page(page, 1);
+		}
+	}
+}
+
 
 /*
  * This function is called during the checkpointing process.

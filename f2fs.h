@@ -132,7 +132,8 @@ static inline bool f2fs_crc_valid(__u32 blk_crc, void *buf, size_t buf_size)
 enum {
 	NAT_BITMAP,
 	SIT_BITMAP,
-	DEDUPE_BITMAP
+	DEDUPE_BITMAP,
+	SUM_TABLE_BITMAP
 };
 
 enum {
@@ -1194,8 +1195,11 @@ static inline void *__bitmap_ptr(struct f2fs_sb_info *sbi, int flag)
 			case DEDUPE_BITMAP:
 				offset = le32_to_cpu(ckpt->sit_ver_bitmap_bytesize);
 				break;
-			case NAT_BITMAP:
+			case SUM_TABLE_BITMAP:
 				offset = le32_to_cpu(ckpt->sit_ver_bitmap_bytesize) + sbi->dedupe_info.dedupe_bitmap_size;
+				break;
+			case NAT_BITMAP:
+				offset = le32_to_cpu(ckpt->sit_ver_bitmap_bytesize) + sbi->dedupe_info.dedupe_bitmap_size +sbi->dedupe_info.sum_table_bitmap_size;
 				break;
 		}
 		//printk("offset:%d\n",offset);
@@ -1808,7 +1812,7 @@ void destroy_node_manager(struct f2fs_sb_info *);
 int __init create_node_manager_caches(void);
 void destroy_node_manager_caches(void);
 void flush_dedupe_entries(struct f2fs_sb_info *);
-
+void flush_sum_table_entries(struct f2fs_sb_info *);
 /*
  * segment.c
  */

@@ -1530,6 +1530,7 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 		*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 		
 		dedupe->addr=*new_blkaddr;
+		set_dedupe_dirty(&sbi->dedupe_info, dedupe);
 		off=dedupe-(sbi->dedupe_info.dedupe_md);
 		f2fs_gc_change_reverse_and_bloom(&sbi->dedupe_info, old_blkaddr, *new_blkaddr, off);
 		

@@ -1321,11 +1321,14 @@ try_onemore:
 	sbi->dedupe_info.dedupe_bitmap_size = sbi->dedupe_info.dedupe_block_count/8;
 	sbi->dedupe_info.dedupe_size = sbi->dedupe_info.dedupe_block_count * DEDUPE_PER_BLOCK * sizeof(struct dedupe);
 	sbi->dedupe_info.dedupe_bitmap = kmemdup(__bitmap_ptr(sbi, DEDUPE_BITMAP), sbi->dedupe_info.dedupe_bitmap_size, GFP_KERNEL);
+
 	//f2fs_gc_dedupe
 	sbi->dedupe_info.sum_table_segment_count = SUM_TABLE_SEGMENT_COUNT;
 	sbi->dedupe_info.sum_table_block_count = (sbi->dedupe_info.sum_table_segment_count/2) << sbi->log_blocks_per_seg;
 	sbi->dedupe_info.sum_table_size = sbi->dedupe_info.sum_table_block_count * SUM_TABLE_PER_BLOCK *sizeof(struct summary_table_entry);
-	
+	sbi->dedupe_info.sum_table_bitmap_size = sbi->dedupe_info.sum_table_block_count/8;
+	sbi->dedupe_info.sum_table_bitmap = kmemdup(__bitmap_ptr(sbi, SUM_TABLE_BITMAP), sbi->dedupe_info.sum_table_bitmap_size, GFP_KERNEL);
+
 	init_dedupe_info(&sbi->dedupe_info);
 	for(i=0; i<sbi->dedupe_info.dedupe_block_count; i++)
 	{
@@ -1360,31 +1363,26 @@ try_onemore:
 #endif
 
 	//f2fs gc dedupe
-	printk("sum table block count and blkaddr : %d %d\n",le32_to_cpu(sbi->raw_super->segment_count_sum_table),le32_to_cpu(sbi->raw_super->sum_table_blkaddr));
+	
 	for(i=0; i<sbi->dedupe_info.sum_table_block_count; i++)
 	{
 		u32 sum_table_base_blkaddr = le32_to_cpu(sbi->raw_super->sum_table_blkaddr);
 		struct summary_table_entry *entry;
 		struct page *sum_table_page = NULL;
-		sum_table_base_blkaddr+=i/512;
-		
+		sum_table_base_blkaddr+=i/512*512;
+
+		if (f2fs_test_bit(i, sbi->dedupe_info.sum_table_bitmap))
+		{
+			sum_table_base_blkaddr+=sbi->dedupe_info.sum_table_block_count;
+		}
 		sum_table_page = get_meta_page(sbi, sum_table_base_blkaddr + i%512);
 		memcpy(((char *)sbi->dedupe_info.sum_table + i*(SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry))), page_address(sum_table_page), SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry));
 		entry = (struct summary_table_entry *)((char *)sbi->dedupe_info.sum_table + i*(SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry)));
-		if(i==0)
-		{
-			for(j=0; j<SUM_TABLE_PER_BLOCK; j++)
-			{
-				//printk("%d %d\n",le32_to_cpu(entry->nid),le16_to_cpu(entry->ofs_in_node));
-				printk("%d ",le32_to_cpu(entry->next));
-				entry++;
-				
-			}
-			printk("\n");
-		}
+		//printk("%d\n",le32_to_cpu((entry+SUM_TABLE_PER_BLOCK-1)->next));
+		//printk("------------blk no %d--------------\n",i);
 		f2fs_put_page(sum_table_page, 1);
 	}
-	printk("--------------------------------end---------------------------\n");
+	
 	//end f2fs gc dedupe
 
 	init_extent_cache_info(sbi);

@@ -27,7 +27,7 @@ struct summary_table_entry{
 	__le32 nid;
 	__le16 ofs_in_node;
 	__le32 next;
-};
+}__packed;
 
 struct dedupe_info
 {
@@ -55,7 +55,9 @@ struct dedupe_info
 	unsigned int sum_table_segment_count;
 	unsigned int sum_table_block_count;
 	unsigned int sum_table_size;
-	
+	char *sum_table_dirty_bitmap;		/*bitmap for dirty sum table blocks*/
+	char *sum_table_bitmap;		/*bitmap for sum table checkpoint*/
+	unsigned int sum_table_bitmap_size;
 #ifdef F2FS_REVERSE_ADDR
 	int *reverse_addr;
 #endif
@@ -70,6 +72,7 @@ extern void init_f2fs_dedupe_bloom_filter(struct dedupe_info *dedupe_info);
 extern void exit_dedupe_info(struct dedupe_info *dedupe_info);
 extern int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info,int *dedupe_index);
 extern void set_dedupe_dirty(struct dedupe_info *dedupe_info, struct dedupe *dedupe);
+extern void set_sum_table_dirty(struct dedupe_info * dedupe_info, struct summary_table_entry * entry);
 extern int f2fs_add_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe *dedupe,__le32 nid,__le16 ofs_in_node);
 extern int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary);
 extern void f2fs_gc_change_reverse_and_bloom(struct dedupe_info *dedupe_info, block_t old_blkaddr, block_t new_blkaddr, int offset);
