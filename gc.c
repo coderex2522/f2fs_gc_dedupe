@@ -626,7 +626,6 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 			goto out;
 		set_page_dirty(page);
 		set_cold_data(page);
-		printk("BG GC move data page\n");
 	} else {
 		struct f2fs_io_info fio = {
 			.sbi = F2FS_I_SB(inode),
@@ -635,7 +634,6 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 			.page = page,
 			.encrypted_page = NULL,
 		};
-		printk("FIO GC move data page\n");
 		set_page_dirty(page);
 		f2fs_wait_on_page_writeback(page, DATA, true);
 		if (clear_page_dirty_for_io(page))
@@ -665,7 +663,7 @@ static int gc_data_segment(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	int phase = 0;
 
 	start_addr = START_BLOCK(sbi, segno);
-	printk("----gc data segment-----\n");
+
 next_step:
 	entry = sum;
 
