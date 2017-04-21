@@ -1524,11 +1524,8 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 		struct summary_table_entry *sum_table=sbi->dedupe_info.sum_table;
 		struct summary_table_entry *entry;
 		int off;
-
 		
-		printk("---------haha--------------\n");
 		*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
-		
 		dedupe->addr=*new_blkaddr;
 		set_dedupe_dirty(&sbi->dedupe_info, dedupe);
 		off=dedupe-(sbi->dedupe_info.dedupe_md);
@@ -1556,7 +1553,7 @@ f2fs_gc_next_step:
 				unsigned int ofs_in_node;
 				nid=__le32_to_cpu(entry->nid);
 				ofs_in_node=__le16_to_cpu(entry->ofs_in_node);
-				printk("---------haha2--------------\n");
+				
 				
 				
 				
@@ -1564,7 +1561,6 @@ f2fs_gc_next_step:
 				{
 					spin_unlock(&sbi->dedupe_info.lock);
 					ra_node_page(sbi, nid);
-					printk("---------haha4--------------\n");
 					goto f2fs_gc_next_loop;
 				}
 				
@@ -1573,14 +1569,13 @@ f2fs_gc_next_step:
 				
 				if (IS_ERR(node_page))
 				{
-					printk("------error---------\n");
 					f2fs_put_page(node_page, 1);
 					goto f2fs_gc_next_loop;
 				}
 				
 				f2fs_wait_on_page_writeback(node_page, NODE, true);
 				rn = F2FS_NODE(node_page);
-				printk("---------haha3--------------\n");
+				
 
 				// Get physical address of data block 
 				addr_array = blkaddr_in_node(rn);

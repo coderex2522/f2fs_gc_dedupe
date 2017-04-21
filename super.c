@@ -1323,7 +1323,7 @@ try_onemore:
 	sbi->dedupe_info.dedupe_bitmap = kmemdup(__bitmap_ptr(sbi, DEDUPE_BITMAP), sbi->dedupe_info.dedupe_bitmap_size, GFP_KERNEL);
 
 	//f2fs_gc_dedupe
-	sbi->dedupe_info.sum_table_segment_count = SUM_TABLE_SEGMENT_COUNT;
+	sbi->dedupe_info.sum_table_segment_count = le32_to_cpu(sbi->raw_super->segment_count_sum_table)/2;;
 	sbi->dedupe_info.sum_table_block_count = (sbi->dedupe_info.sum_table_segment_count/2) << sbi->log_blocks_per_seg;
 	sbi->dedupe_info.sum_table_size = sbi->dedupe_info.sum_table_block_count * SUM_TABLE_PER_BLOCK *sizeof(struct summary_table_entry);
 	sbi->dedupe_info.sum_table_bitmap_size = sbi->dedupe_info.sum_table_block_count/8;
@@ -1378,8 +1378,6 @@ try_onemore:
 		sum_table_page = get_meta_page(sbi, sum_table_base_blkaddr + i%512);
 		memcpy(((char *)sbi->dedupe_info.sum_table + i*(SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry))), page_address(sum_table_page), SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry));
 		entry = (struct summary_table_entry *)((char *)sbi->dedupe_info.sum_table + i*(SUM_TABLE_PER_BLOCK * sizeof(struct summary_table_entry)));
-		//printk("%d\n",le32_to_cpu((entry+SUM_TABLE_PER_BLOCK-1)->next));
-		//printk("------------blk no %d--------------\n",i);
 		f2fs_put_page(sum_table_page, 1);
 	}
 	

@@ -306,7 +306,7 @@ int f2fs_dedupe_add(u8 hash[], struct dedupe_info *dedupe_info, block_t addr)
 		search_count++;
 		if(search_count>dedupe_info->dedupe_block_count * DEDUPE_PER_BLOCK)
 		{
-			printk("can not add f2fs dedupe md.\n");
+			//printk("can not add f2fs dedupe md.\n");
 			ret = -1;
 			break;
 		}
