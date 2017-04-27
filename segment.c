@@ -1487,7 +1487,7 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 
 int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 		block_t old_blkaddr, block_t *new_blkaddr,
-		struct f2fs_summary *sum, int type, struct page *dn_node_page)
+		struct f2fs_summary *sum, int type, struct page *dn_node_page, int fio_type)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
 	struct curseg_info *curseg;
@@ -1504,27 +1504,29 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 	mutex_lock(&sit_i->sentry_lock);
 
 	/* direct_io'ed data is aligned to the segment for better performance */
-	if (direct_io && curseg->next_blkoff &&
-			!has_not_enough_free_secs(sbi, 0))
-	__allocate_new_segments(sbi, type);
+	if(curseg->next_blkoff==3|| (direct_io && curseg->next_blkoff &&
+			!has_not_enough_free_secs(sbi, 0)))
+		__allocate_new_segments(sbi, type);
 
 	spin_lock(&sbi->dedupe_info.lock);
 	dedupe = f2fs_dedupe_search(hash, &sbi->dedupe_info);
 	if(!dedupe)
 	{
 		*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
+		printk("new blkaddr %d\n",*new_blkaddr);
 		f2fs_dedupe_add(hash, &sbi->dedupe_info, *new_blkaddr);
 		spin_lock(&sbi->stat_lock);
 		sbi->total_valid_block_count ++;
 		spin_unlock(&sbi->stat_lock);
 		spin_unlock(&sbi->dedupe_info.lock);
 	}
-	else if(old_blkaddr==dedupe->addr&&type==2)
+	else if(fio_type==GC_DATA)
 	{
 		struct summary_table_entry *sum_table=sbi->dedupe_info.sum_table;
 		struct summary_table_entry *entry;
 		int off;
-		
+
+		printk("dedupe ref %d blk addr %d \n",dedupe->ref,dedupe->addr);
 		*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 		dedupe->addr=*new_blkaddr;
 		set_dedupe_dirty(&sbi->dedupe_info, dedupe);
@@ -1724,12 +1726,20 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 
 static void do_write_page_dedupe(struct f2fs_summary *sum, struct f2fs_io_info *fio, struct page *dn_node_page)
 {
-	int type = __get_segment_type(fio->page, fio->type);
-
-	int ret = 0;
-
+	int type,ret = 0;
+	
+	if(likely(fio->type != GC_DATA))
+		type = __get_segment_type(fio->page, fio->type);
+	else
+		type = __get_segment_type(fio->page, DATA);
+	
 	ret = allocate_data_block_dedupe(fio->sbi, fio->page, fio->blk_addr,
-						&fio->blk_addr, sum, type, dn_node_page);
+						&fio->blk_addr, sum, type, dn_node_page, fio->type);
+
+	//fio->type = (fio->type==GC_DATA) ?  DATA : fio->type;
+	if(unlikely(fio->type == GC_DATA))
+		fio->type = DATA;
+	
 	if(!ret)
 	{
 		set_page_writeback(fio->page);

@@ -190,6 +190,29 @@ void f2fs_gc_change_reverse_and_bloom(struct dedupe_info *dedupe_info, block_t o
 	
 }
 
+int f2fs_ref_search_from_addr(block_t addr, struct dedupe_info *dedupe_info)
+{
+	struct dedupe *cur;
+	spin_lock(&dedupe_info->lock);
+	if(NEW_ADDR == addr )
+		return -1;
+
+#ifdef F2FS_REVERSE_ADDR
+	if(-1 == dedupe_info->reverse_addr[addr])
+		return -1;
+
+	cur = &dedupe_info->dedupe_md[dedupe_info->reverse_addr[addr]];
+	return cur->ref;
+#endif
+
+	for(cur=dedupe_info->dedupe_md; cur < dedupe_info->dedupe_md + dedupe_info->dedupe_block_count * DEDUPE_PER_BLOCK; cur++)
+	{
+		if(unlikely(cur->addr == addr))
+			return cur->ref;
+	}
+
+	return -1;
+}
 
 int f2fs_dedupe_delete_addr(block_t addr, struct dedupe_info *dedupe_info, int *dedupe_index)
 {
@@ -306,6 +329,7 @@ int f2fs_dedupe_add(u8 hash[], struct dedupe_info *dedupe_info, block_t addr)
 		search_count++;
 		if(search_count>dedupe_info->dedupe_block_count * DEDUPE_PER_BLOCK)
 		{
+			//printk("can not add f2fs dedupe md.\n");
 			ret = -1;
 			break;
 		}

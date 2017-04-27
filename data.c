@@ -1105,6 +1105,8 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		else
 		{
 			set_page_writeback(page);
+			if(unlikely(fio->type == GC_DATA))
+				fio->type = DATA;
 			write_data_page(&dn, fio);
 		}
 		set_data_blkaddr(&dn);

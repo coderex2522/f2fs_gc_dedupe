@@ -626,6 +626,7 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 			goto out;
 		set_page_dirty(page);
 		set_cold_data(page);
+		printk("BG GC move data page\n");
 	} else {
 		struct f2fs_io_info fio = {
 			.sbi = F2FS_I_SB(inode),
@@ -634,11 +635,13 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 			.page = page,
 			.encrypted_page = NULL,
 		};
+		printk("FIO GC move data page\n");
 		set_page_dirty(page);
 		f2fs_wait_on_page_writeback(page, DATA, true);
 		if (clear_page_dirty_for_io(page))
 			inode_dec_dirty_pages(inode);
 		set_cold_data(page);
+		fio.type=GC_DATA;
 		do_write_data_page(&fio);
 		clear_cold_data(page);
 	}
@@ -663,7 +666,7 @@ static int gc_data_segment(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
 	int phase = 0;
 
 	start_addr = START_BLOCK(sbi, segno);
-
+	
 next_step:
 	entry = sum;
 
@@ -748,6 +751,185 @@ next_step:
 	return 0;
 }
 
+static int gc_data_segment_dedupe(struct f2fs_sb_info *sbi, struct f2fs_summary *sum,
+		struct gc_inode_list *gc_list, unsigned int segno, int gc_type)
+{
+	struct super_block *sb = sbi->sb;
+	struct f2fs_summary *entry;
+	block_t start_addr;
+	int off;
+	int phase = 0;
+	struct ref_div_index *rdi=NULL;
+	struct ref_div_index *rdi_head;
+	
+	start_addr = START_BLOCK(sbi, segno);
+	rdi=kmalloc(sizeof(*rdi),GFP_KERNEL);
+	rdi->index=-1;
+	INIT_LIST_HEAD(&rdi->list);
+	rdi_head = rdi;
+	
+next_step:
+	entry = sum;
+		
+	for (off = 0; off < sbi->blocks_per_seg; off++, entry++) {
+		struct page *data_page;
+		struct page *node_page;
+		struct inode *inode;
+		struct node_info dni; /* dnode info for the data */
+		unsigned int ofs_in_node, nofs;
+		block_t start_bidx,blk_addr;
+		struct ref_div_index *tmp_rdi;
+		int ref;
+		
+		/* stop BG_GC if there is not enough free sections. */
+		if (gc_type == BG_GC && has_not_enough_free_secs(sbi, 0))
+			return 0;
+		
+		if (check_valid_map(sbi, segno, off) == 0)
+			continue;
+		
+		if (phase == 0) {
+			ra_node_page(sbi, le32_to_cpu(entry->nid));
+			continue;
+		}
+		
+		/* Get an inode by ino with checking validity */
+		if (!is_alive(sbi, entry, &dni, start_addr + off, &nofs))
+			continue;
+		
+		if (phase == 1) {
+			ra_node_page(sbi, dni.ino);
+			continue;
+		}
+		
+		ofs_in_node = le16_to_cpu(entry->ofs_in_node);
+		
+		if (phase == 2) {
+			inode = f2fs_iget(sb, dni.ino);
+			if (IS_ERR(inode) || is_bad_inode(inode))
+				continue;
+		
+			/* if encrypted inode, let's go phase 3 */
+			if (f2fs_encrypted_inode(inode) &&
+						S_ISREG(inode->i_mode)) {
+				add_gc_inode(gc_list, inode);
+				continue;
+			}
+		
+			start_bidx = start_bidx_of_node(nofs, F2FS_I(inode));
+			data_page = get_read_data_page(inode,
+					start_bidx + ofs_in_node, READA);
+
+			node_page = get_node_page(sbi,entry->nid);
+			blk_addr = datablock_addr(node_page, entry->ofs_in_node);
+			printk("gc blkoff %d off %d\n",blk_addr,off);
+			f2fs_put_page(node_page, 1);
+			ref = f2fs_ref_search_from_addr(blk_addr, &sbi->dedupe_info);
+			
+			if(unlikely(ref == -1))
+			{
+				printk("ref search not found.\n");
+				spin_unlock(&sbi->dedupe_info.lock);
+			}
+			else
+			{
+				spin_unlock(&sbi->dedupe_info.lock);
+				tmp_rdi = kmalloc(sizeof(*tmp_rdi),GFP_KERNEL);
+				tmp_rdi->index = off;
+				if(ref > 3)
+				{	
+					list_add_tail(&tmp_rdi->list, &rdi->list);
+					if(unlikely(rdi_head == rdi))
+						rdi_head = tmp_rdi;
+				}
+				else
+					list_add(&tmp_rdi->list, &rdi->list);
+					
+			}
+			printk("ref %d\n",ref);
+			
+			if (IS_ERR(data_page)) {
+				iput(inode);
+				if(ref > 3)
+					rdi_head = container_of(tmp_rdi->list.next, struct ref_div_index, list);
+				if(ref >= 0)
+					list_del(&tmp_rdi->list);
+				continue;
+			}
+			
+			f2fs_put_page(data_page, 0);
+			add_gc_inode(gc_list, inode);
+			continue;
+		}
+	}
+		
+	if (++phase < 3)
+		goto next_step;
+	
+	if(rdi_head != NULL)
+	{
+	
+		struct ref_div_index *rdi_traver;
+		printk("pre rdi_head %d\n",rdi_head->index);
+		list_for_each_entry(rdi_traver, &rdi_head->list, list)
+		{
+			printk("pre %d\n",rdi_traver->index);
+		}
+		if(rdi_head != rdi)
+			rdi->index = rdi_head->index;
+
+		list_for_each_entry(rdi_traver, &rdi_head->list, list)
+		{
+			printk("last %d\n",rdi_traver->index);
+		}
+		
+		list_for_each_entry(rdi_traver, &rdi_head->list, list)
+		{
+			struct inode *inode;
+			struct node_info dni; /* dnode info for the data */
+			unsigned int ofs_in_node, nofs;
+			block_t start_bidx;
+			
+			//printk("%d\n",rdi_traver->index);
+			if(rdi_traver->index < 0)
+				continue;
+			
+			off = rdi_traver->index;
+			entry = sum + off;
+			
+			if (check_valid_map(sbi, segno, off) == 0)
+				continue;
+
+			/* Get an inode by ino with checking validity */
+			if (!is_alive(sbi, entry, &dni, start_addr + off, &nofs))
+				continue;
+
+			ofs_in_node = le16_to_cpu(entry->ofs_in_node);
+
+			inode = find_gc_inode(gc_list, dni.ino);
+			if (inode) {
+				start_bidx = start_bidx_of_node(nofs, F2FS_I(inode))
+									+ ofs_in_node;
+				if (f2fs_encrypted_inode(inode) && S_ISREG(inode->i_mode))
+					move_encrypted_block(inode, start_bidx);
+				else
+					move_data_page(inode, start_bidx, gc_type);
+				stat_inc_data_blk_count(sbi, 1, gc_type);
+			}
+		}
+		
+	}
+	
+	if (gc_type == FG_GC) {
+		f2fs_submit_merged_bio(sbi, DATA, WRITE);
+		
+		/* return 1 only if FG_GC succefully reclaimed one */
+		if (get_valid_blocks(sbi, segno, 1) == 0)
+			return 1;
+	}
+	return 0;
+}
+
 static int __get_victim(struct f2fs_sb_info *sbi, unsigned int *victim,
 			int gc_type)
 {
@@ -790,7 +972,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi, unsigned int segno,
 		nfree = gc_node_segment(sbi, sum->entries, segno, gc_type);
 		break;
 	case SUM_TYPE_DATA:
-		nfree = gc_data_segment(sbi, sum->entries, gc_list,
+		nfree = gc_data_segment_dedupe(sbi, sum->entries, gc_list,
 							segno, gc_type);
 		break;
 	}

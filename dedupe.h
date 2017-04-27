@@ -5,11 +5,8 @@
 //#define F2FS_NO_HASH 1
 #define F2FS_REVERSE_ADDR 1
 
-//#define DEDUPE_SEGMENT_COUNT 6
 #define DEDUPE_PER_BLOCK (PAGE_CACHE_SIZE/sizeof(struct dedupe))
 
-//#define SUM_TABLE_LEN 1200000
-#define SUM_TABLE_SEGMENT_COUNT 6
 #define SUM_TABLE_PER_BLOCK (PAGE_CACHE_SIZE/sizeof(struct summary_table_entry))
 
 typedef u32 block_t;
@@ -28,6 +25,11 @@ struct summary_table_entry{
 	__le16 ofs_in_node;
 	__le32 next;
 }__packed;
+
+struct ref_div_index{
+	int index;
+	struct list_head list;
+};
 
 struct dedupe_info
 {
@@ -76,5 +78,6 @@ extern void set_sum_table_dirty(struct dedupe_info * dedupe_info, struct summary
 extern int f2fs_add_summary_table_entry(struct dedupe_info *dedupe_info,struct dedupe *dedupe,__le32 nid,__le16 ofs_in_node);
 extern int f2fs_del_summary_table_entry(struct dedupe_info *dedupe_info,int index,struct summary_table_entry *origin_summary,struct summary_table_entry del_summary);
 extern void f2fs_gc_change_reverse_and_bloom(struct dedupe_info *dedupe_info, block_t old_blkaddr, block_t new_blkaddr, int offset);
+extern int f2fs_ref_search_from_addr(block_t addr, struct dedupe_info *dedupe_info);
 #endif
 
