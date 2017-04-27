@@ -626,7 +626,6 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 			goto out;
 		set_page_dirty(page);
 		set_cold_data(page);
-		printk("BG GC move data page\n");
 	} else {
 		struct f2fs_io_info fio = {
 			.sbi = F2FS_I_SB(inode),
@@ -635,7 +634,6 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type)
 			.page = page,
 			.encrypted_page = NULL,
 		};
-		printk("FIO GC move data page\n");
 		set_page_dirty(page);
 		f2fs_wait_on_page_writeback(page, DATA, true);
 		if (clear_page_dirty_for_io(page))
@@ -822,7 +820,6 @@ next_step:
 
 			node_page = get_node_page(sbi,entry->nid);
 			blk_addr = datablock_addr(node_page, entry->ofs_in_node);
-			printk("gc blkoff %d off %d\n",blk_addr,off);
 			f2fs_put_page(node_page, 1);
 			ref = f2fs_ref_search_from_addr(blk_addr, &sbi->dedupe_info);
 			
@@ -846,7 +843,7 @@ next_step:
 					list_add(&tmp_rdi->list, &rdi->list);
 					
 			}
-			printk("ref %d\n",ref);
+			
 			
 			if (IS_ERR(data_page)) {
 				iput(inode);
@@ -870,18 +867,8 @@ next_step:
 	{
 	
 		struct ref_div_index *rdi_traver;
-		printk("pre rdi_head %d\n",rdi_head->index);
-		list_for_each_entry(rdi_traver, &rdi_head->list, list)
-		{
-			printk("pre %d\n",rdi_traver->index);
-		}
 		if(rdi_head != rdi)
 			rdi->index = rdi_head->index;
-
-		list_for_each_entry(rdi_traver, &rdi_head->list, list)
-		{
-			printk("last %d\n",rdi_traver->index);
-		}
 		
 		list_for_each_entry(rdi_traver, &rdi_head->list, list)
 		{
@@ -890,7 +877,6 @@ next_step:
 			unsigned int ofs_in_node, nofs;
 			block_t start_bidx;
 			
-			//printk("%d\n",rdi_traver->index);
 			if(rdi_traver->index < 0)
 				continue;
 			

@@ -1504,16 +1504,15 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 	mutex_lock(&sit_i->sentry_lock);
 
 	/* direct_io'ed data is aligned to the segment for better performance */
-	if(curseg->next_blkoff==3|| (direct_io && curseg->next_blkoff &&
-			!has_not_enough_free_secs(sbi, 0)))
-		__allocate_new_segments(sbi, type);
+	if(direct_io && curseg->next_blkoff &&
+			!has_not_enough_free_secs(sbi, 0))
+	__allocate_new_segments(sbi, type);
 
 	spin_lock(&sbi->dedupe_info.lock);
 	dedupe = f2fs_dedupe_search(hash, &sbi->dedupe_info);
 	if(!dedupe)
 	{
 		*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
-		printk("new blkaddr %d\n",*new_blkaddr);
 		f2fs_dedupe_add(hash, &sbi->dedupe_info, *new_blkaddr);
 		spin_lock(&sbi->stat_lock);
 		sbi->total_valid_block_count ++;
@@ -1526,7 +1525,6 @@ int allocate_data_block_dedupe(struct f2fs_sb_info *sbi, struct page *page,
 		struct summary_table_entry *entry;
 		int off;
 
-		printk("dedupe ref %d blk addr %d \n",dedupe->ref,dedupe->addr);
 		*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
 		dedupe->addr=*new_blkaddr;
 		set_dedupe_dirty(&sbi->dedupe_info, dedupe);
